@@ -107,25 +107,44 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* coming-soon panel */
-  .placeholder {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 80px 24px;
-    max-width: 1100px;
-    margin: 0 auto;
-    text-align: center;
+  /* DTC tab */
+  .spin-chain-canvas {
+    width: 100%;
+    height: 38px;
+    background: rgba(35, 39, 48, 0.55);
+    border-radius: 6px;
+    margin-bottom: 12px;
   }
-  .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
-  .placeholder-title { font-size: 22px; font-weight: 600; margin: 0 0 8px 0; }
-  .placeholder-sub { color: var(--muted); font-size: 14px; }
+  .dtc-badge {
+    padding: 10px 22px;
+    border: 2px solid var(--border-bright);
+    color: var(--muted);
+    border-radius: 28px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.6px;
+    transition: all 0.25s;
+  }
+  .dtc-badge.locked {
+    border-color: var(--emerald);
+    color: #c8f7cd;
+    box-shadow: 0 0 22px rgba(109, 216, 112, 0.55), inset 0 0 12px rgba(109, 216, 112, 0.2);
+  }
+  .dtc-badge.building {
+    border-color: #d8b86d;
+    color: #f7e3c0;
+    box-shadow: 0 0 16px rgba(216, 184, 109, 0.35);
+  }
+  .dtc-badge.chaos {
+    border-color: var(--border-bright);
+    color: var(--muted);
+  }
 </style>
 </head>
 <body>
 <nav class="tabs">
   <button class="tab active" data-tab="emergence">✨ Emergence</button>
-  <button class="tab disabled" data-tab="coming-soon">🚧 준비중</button>
+  <button class="tab" data-tab="dtc">🔮 Time Crystal</button>
 </nav>
 
 <div id="tab-emergence" class="tab-panel active">
@@ -176,23 +195,65 @@
 </div>
 </div>
 
-<div id="tab-coming-soon" class="tab-panel">
-  <div class="placeholder">
-    <div class="placeholder-icon">🚧</div>
-    <h2 class="placeholder-title">준비중</h2>
-    <p class="placeholder-sub">두 번째 인터랙션은 곧 추가됩니다.</p>
+<div id="tab-dtc" class="tab-panel">
+<div class="card">
+  <div class="header">
+    <div>
+      <h2 class="title">이산 시간 결정 (Discrete Time Crystal) 시뮬레이션</h2>
+      <div class="status" id="dtc-status">초기화 중...</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">mag</div><div class="metric-value" id="dtc-mag">0.00</div></div>
+      <div class="metric"><div class="metric-label">ac(1)</div><div class="metric-value" id="dtc-ac1">0.00</div></div>
+      <div class="metric"><div class="metric-label">ac(2)</div><div class="metric-value" id="dtc-ac2">0.00</div></div>
+      <div class="metric"><div class="metric-label">ac(4)</div><div class="metric-value" id="dtc-ac4">0.00</div></div>
+    </div>
   </div>
+
+  <div class="canvas-area">
+    <div class="stream-row">
+      <div class="stream-label" style="color:#c0c8e0">Spin Chain (N = 64)</div>
+      <canvas class="spin-chain-canvas" id="dtc-spins"></canvas>
+    </div>
+    <div class="stream-row">
+      <div class="stream-label" style="color:var(--blue)">Magnetization ⟨s⟩  (zigzag = period-2 lock)</div>
+      <canvas class="stream-canvas" id="dtc-mag-cv"></canvas>
+    </div>
+    <hr class="divider">
+    <div class="bottom-row">
+      <div class="dtc-badge chaos" id="dtc-badge">…</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="label">플립 오차 (EPS)</span>
+    <input type="range" id="dtc-eps" min="0" max="50" value="5">
+    <span class="coup-val" id="dtc-eps-val">0.05</span>
+    <button class="reset-btn" id="dtc-reset">초기화</button>
+  </div>
+
+  <div class="footnote">
+    매 tick: Ising Metropolis sweep (β = 2.5) → π-flip (각 스핀이 1−ε 확률로 뒤집힘).<br>
+    DTC lock 조건: ac(1) &lt; −0.85 (외부 드라이브와 anti-phase) AND ac(2) &gt; 0.80 (2틱 주기로 원상 복구).<br>
+    EPS 0.4 근처로 올리면 Ising self-correction 임계 초과 → 결정 융해 → ac → 0 카오스.
+  </div>
+</div>
 </div>
 
 <script>
-// tab switcher
+// tab switcher — exposed activeTab for tick gating
+window.activeTab = "emergence";
 document.querySelectorAll(".tab").forEach(btn => {
   btn.addEventListener("click", () => {
     const target = btn.dataset.tab;
+    window.activeTab = target;
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab-panel").forEach(p => {
       p.classList.toggle("active", p.id === "tab-" + target);
     });
+    // resize canvases (hidden canvases have 0×0 client rect)
+    if (typeof window.applyEmergenceResize === "function") window.applyEmergenceResize();
+    if (typeof window.applyDtcResize === "function") window.applyDtcResize();
   });
 });
 </script>
@@ -298,6 +359,7 @@ function applyResize() {
   dimsL = resizeCanvas(cvL);
   dimsR = resizeCanvas(cvR);
 }
+window.applyEmergenceResize = applyResize;
 applyResize();
 window.addEventListener("resize", applyResize);
 
@@ -358,6 +420,7 @@ function drawScatter(L, R) {
 // Tick — runs at ~60 fps via setInterval
 // ─────────────────────────────────────────────────────────────────────────
 function tick() {
+  if (window.activeTab !== "emergence") return;
   const c = parseInt(slider.value, 10) / 100;
   const [l, r] = generateSample(c, t);
   histL.push(l);
@@ -413,6 +476,177 @@ resetBtn.addEventListener("click", () => {
 });
 
 setInterval(tick, TICK_MS);
+</script>
+
+<script>
+"use strict";
+// ─────────────────────────────────────────────────────────────────────────
+// Discrete Time Crystal (DTC) — port of dtc_demo.py
+// ─────────────────────────────────────────────────────────────────────────
+const DTC_TICK_MS = 50;       // ~20 fps (Ising sweep is heavier than emergence)
+const DTC_N       = 64;       // spin chain length
+const DTC_J       = 1.0;      // coupling
+const DTC_BETA    = 2.5;      // inverse temperature
+const DTC_HIST    = 300;      // magnetization history length
+
+// state
+const dtcSpin = new Int8Array(DTC_N);
+for (let i = 0; i < DTC_N; i++) dtcSpin[i] = Math.random() < 0.5 ? 1 : -1;
+const dtcMagHist = [];
+let dtcEps = 0.05;
+
+// DOM refs
+const dtcCvSpins = document.getElementById("dtc-spins");
+const dtcCtxSpins = dtcCvSpins.getContext("2d");
+const dtcCvMag = document.getElementById("dtc-mag-cv");
+const dtcCtxMag = dtcCvMag.getContext("2d");
+const dtcSlider = document.getElementById("dtc-eps");
+const dtcSliderVal = document.getElementById("dtc-eps-val");
+const dtcResetBtn = document.getElementById("dtc-reset");
+const dtcMag = document.getElementById("dtc-mag");
+const dtcAc1 = document.getElementById("dtc-ac1");
+const dtcAc2 = document.getElementById("dtc-ac2");
+const dtcAc4 = document.getElementById("dtc-ac4");
+const dtcStatus = document.getElementById("dtc-status");
+const dtcBadge = document.getElementById("dtc-badge");
+
+// physics
+function dtcIsingSweep() {
+  for (let i = 0; i < DTC_N; i++) {
+    const left = dtcSpin[(i - 1 + DTC_N) % DTC_N];
+    const right = dtcSpin[(i + 1) % DTC_N];
+    const dE = 2 * DTC_J * dtcSpin[i] * (left + right);
+    if (dE <= 0 || Math.random() < Math.exp(-DTC_BETA * dE)) {
+      dtcSpin[i] = -dtcSpin[i];
+    }
+  }
+}
+function dtcPiFlip(eps) {
+  for (let i = 0; i < DTC_N; i++) {
+    if (Math.random() > eps) dtcSpin[i] = -dtcSpin[i];
+  }
+}
+function dtcMagnetization() {
+  let s = 0;
+  for (let i = 0; i < DTC_N; i++) s += dtcSpin[i];
+  return s / DTC_N;
+}
+function dtcAc(x, lag) {
+  const n = x.length;
+  if (n < lag + 20) return 0;
+  let mean = 0;
+  for (let i = 0; i < n; i++) mean += x[i];
+  mean /= n;
+  let aDotA = 0, bDotB = 0, aDotB = 0;
+  for (let i = 0; i < n - lag; i++) {
+    const a = x[i] - mean, b = x[i + lag] - mean;
+    aDotA += a * a; bDotB += b * b; aDotB += a * b;
+  }
+  const d = Math.sqrt(aDotA * bDotB);
+  return d > 1e-10 ? aDotB / d : 0;
+}
+
+// rendering
+let dtcDimsSpins, dtcDimsMag;
+function dtcResize() {
+  dtcDimsSpins = resizeCanvas(dtcCvSpins);
+  dtcDimsMag = resizeCanvas(dtcCvMag);
+}
+window.applyDtcResize = dtcResize;
+dtcResize();
+window.addEventListener("resize", dtcResize);
+
+function drawSpinChain(w, h) {
+  dtcCtxSpins.clearRect(0, 0, w, h);
+  dtcCtxSpins.fillStyle = "rgba(35, 39, 48, 0.55)";
+  dtcCtxSpins.fillRect(0, 0, w, h);
+  const cellW = w / DTC_N;
+  for (let i = 0; i < DTC_N; i++) {
+    dtcCtxSpins.fillStyle = dtcSpin[i] > 0 ? "#7b9aff" : "#ff7b9a";
+    dtcCtxSpins.fillRect(i * cellW + 1, 4, cellW - 2, h - 8);
+  }
+}
+
+function drawMagSeries(w, h) {
+  dtcCtxMag.clearRect(0, 0, w, h);
+  dtcCtxMag.fillStyle = "rgba(35, 39, 48, 0.55)";
+  dtcCtxMag.fillRect(0, 0, w, h);
+  // zero line
+  dtcCtxMag.strokeStyle = "rgba(139, 146, 163, 0.25)";
+  dtcCtxMag.lineWidth = 1;
+  dtcCtxMag.setLineDash([3, 3]);
+  dtcCtxMag.beginPath();
+  dtcCtxMag.moveTo(0, h / 2);
+  dtcCtxMag.lineTo(w, h / 2);
+  dtcCtxMag.stroke();
+  dtcCtxMag.setLineDash([]);
+
+  if (dtcMagHist.length < 2) return;
+  dtcCtxMag.beginPath();
+  dtcCtxMag.strokeStyle = "#7b9aff";
+  dtcCtxMag.lineWidth = 1.6;
+  dtcCtxMag.lineJoin = "round";
+  const denom = DTC_HIST - 1;
+  for (let i = 0; i < dtcMagHist.length; i++) {
+    const x = (i / denom) * w;
+    // map [-1, 1] → [h*0.9, h*0.1]
+    const y = h - ((dtcMagHist[i] + 1) / 2 * h * 0.8 + h * 0.1);
+    if (i === 0) dtcCtxMag.moveTo(x, y);
+    else dtcCtxMag.lineTo(x, y);
+  }
+  dtcCtxMag.stroke();
+}
+
+// tick
+function dtcTick() {
+  if (window.activeTab !== "dtc") return;
+  dtcIsingSweep();
+  dtcPiFlip(dtcEps);
+  const m = dtcMagnetization();
+  dtcMagHist.push(m);
+  if (dtcMagHist.length > DTC_HIST) dtcMagHist.shift();
+
+  const a1 = dtcAc(dtcMagHist, 1);
+  const a2 = dtcAc(dtcMagHist, 2);
+  const a4 = dtcAc(dtcMagHist, 4);
+
+  dtcMag.textContent = (m >= 0 ? "+" : "") + m.toFixed(3);
+  dtcAc1.textContent = (a1 >= 0 ? "+" : "") + a1.toFixed(3);
+  dtcAc2.textContent = (a2 >= 0 ? "+" : "") + a2.toFixed(3);
+  dtcAc4.textContent = (a4 >= 0 ? "+" : "") + a4.toFixed(3);
+
+  if (a1 < -0.85 && a2 > 0.80) {
+    dtcBadge.textContent = "DTC LOCKED ✨";
+    dtcBadge.className = "dtc-badge locked";
+    dtcStatus.textContent = "시간 결정 형성 — period-2 lock. 외부 드라이브와 anti-phase 동기화.";
+  } else if (a1 < -0.5) {
+    dtcBadge.textContent = "BUILDING...";
+    dtcBadge.className = "dtc-badge building";
+    dtcStatus.textContent = "주기 배가 형성 중 — 자기상관이 anti-phase 로 정렬되는 중.";
+  } else {
+    dtcBadge.textContent = "CHAOS — crystal melted";
+    dtcBadge.className = "dtc-badge chaos";
+    dtcStatus.textContent = "결정 융해 — Ising self-correction 한계 초과, 무질서 평형으로 떨어짐.";
+  }
+
+  drawSpinChain(dtcDimsSpins[0], dtcDimsSpins[1]);
+  drawMagSeries(dtcDimsMag[0], dtcDimsMag[1]);
+}
+
+// wiring
+dtcSlider.addEventListener("input", () => {
+  dtcEps = parseInt(dtcSlider.value, 10) / 100;
+  dtcSliderVal.textContent = dtcEps.toFixed(2);
+});
+dtcResetBtn.addEventListener("click", () => {
+  for (let i = 0; i < DTC_N; i++) dtcSpin[i] = Math.random() < 0.5 ? 1 : -1;
+  dtcMagHist.length = 0;
+  dtcSlider.value = 5;
+  dtcEps = 0.05;
+  dtcSliderVal.textContent = "0.05";
+});
+
+setInterval(dtcTick, DTC_TICK_MS);
 </script>
 </body>
 </html>
