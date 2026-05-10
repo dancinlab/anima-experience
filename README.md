@@ -25,11 +25,13 @@ emergence = H(L) + H(R) − H(L, R)   (bits)
 
 ## Tech
 
-- Static HF Space (`sdk: static`) — no cold start.
-- **Pyodide** — runs `byte_emergence_demo.py` 100% verbatim in the browser via WebAssembly. numpy included.
-- First paint after Pyodide load (~5 s download, then cached): metrics tick at ~20-30 fps.
-- 16-bin histogram entropy, 256-sample window per tick.
-- Reproducible noise: `np.random.default_rng(t)` seeded by frame index — same as the Python original.
+- Static HF Space (`sdk: static`) — first paint < 1 s, no cold start, no Python runtime.
+- Vanilla JS — `setInterval` 30 fps tick over a 250-sample rolling buffer.
+- Engine: shared `sin(t)` + individual gaussian-ish noise per stream.
+  `L = (1−c)·noiseL + c·sin(t)`, `R = (1−c)·noiseR + c·sin(t)`. High coupling
+  collapses both streams onto the diagonal — the scatter aligns cleanly.
+- 12-bin histogram entropy over `[−1.5, +1.5]`. EMERGENT badge shows only
+  when MI > 0.30 (`opacity:0` + `visibility:hidden` otherwise — fully gone).
 
 ## Sister
 

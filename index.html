@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>Anima Emergence — byte-level mutual information</title>
+<title>Anima Emergence — mutual information visualizer</title>
 <style>
   :root {
     --bg: #1a1d24;
@@ -72,17 +72,8 @@
   .coup-val { background: var(--bg); border: 1px solid var(--border-bright); border-radius: 8px; padding: 6px 14px; font-family: "SF Mono", monospace; min-width: 48px; text-align: center; font-size: 14px; }
   .reset-btn { background: var(--border); color: var(--text); border: 1px solid var(--border-bright); border-radius: 24px; padding: 8px 28px; cursor: pointer; font-size: 13px; transition: background 0.15s; }
   .reset-btn:hover { background: var(--border-bright); }
-  .reset-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .footnote { color: var(--muted); font-size: 12px; text-align: center; margin-top: 18px; line-height: 1.6; }
   .footnote code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; }
-  .loading-bar {
-    height: 3px;
-    background: linear-gradient(90deg, var(--blue), var(--green));
-    width: 0%;
-    transition: width 0.3s;
-    border-radius: 2px;
-    margin-top: 4px;
-  }
 </style>
 </head>
 <body>
@@ -90,14 +81,13 @@
   <div class="header">
     <div>
       <h2 class="title">데이터 스트림 결합 및 창발성 시각화</h2>
-      <div class="status" id="status">Pyodide 로딩 중...</div>
-      <div class="loading-bar" id="loading-bar"></div>
+      <div class="status" id="status">버퍼 채우는 중...</div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="m-hl">—</div></div>
-      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="m-hr">—</div></div>
-      <div class="metric"><div class="metric-label">H(L,R)</div><div class="metric-value" id="m-hj">—</div></div>
-      <div class="metric"><div class="metric-label">창발성 (MI)</div><div class="metric-value" id="m-mi" style="color:#c8f7cd">—</div></div>
+      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="m-hl">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="m-hr">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(L,R)</div><div class="metric-value" id="m-hj">0.00</div></div>
+      <div class="metric"><div class="metric-label">창발성 (MI)</div><div class="metric-value" id="m-mi" style="color:#c8f7cd">0.000</div></div>
     </div>
   </div>
 
@@ -122,84 +112,106 @@
 
   <div class="controls">
     <span class="label">결합 강도 (Coupling)</span>
-    <input type="range" id="coup" min="0" max="100" value="80" disabled>
+    <input type="range" id="coup" min="0" max="100" value="80">
     <span class="coup-val" id="coup-val">0.80</span>
-    <button class="reset-btn" id="reset" disabled>초기화</button>
+    <button class="reset-btn" id="reset">초기화</button>
   </div>
 
   <div class="footnote">
     emergence = H(L) + H(R) − H(L,R) — 두 스트림이 독립이면 0, 결합하면 양수로 떠오릅니다.<br>
-    원본: <code>anima/byte_emergence_demo.py</code> 를 Pyodide 로 브라우저에서 100% 그대로 실행합니다 (numpy 포함).<br>
-    zigzag 산점도는 <code>w ^ (L &gt;&gt; 1)</code> XOR 결합의 정상 동작 — 비트 순서가 뒤집히는 지점마다 점이 다른 위치로 매핑됩니다.
+    공유 사인파 + 개별 노이즈 모델 (no XOR) — 고결합 시 두 스트림이 동일 신호로 수렴해 산점도가 대각선 정렬.
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 "use strict";
 
 // ─────────────────────────────────────────────────────────────────────────
-// Original Python — verbatim from anima/byte_emergence_demo.py
-// (only the print loop is replaced with a per-tick step() helper for JS)
+// Config
 // ─────────────────────────────────────────────────────────────────────────
-const PY_SOURCE = `
-import numpy as np
+const TICK_MS  = 33;     // ~30 fps
+const HIST_LEN = 250;    // rolling buffer length (~8 s of history at 30 fps)
+const BINS     = 12;     // entropy histogram bins
+const VRANGE   = 1.5;    // value range [-VRANGE, +VRANGE]
+const MIN_FOR_METRICS = 50;
+const MI_EMERGENT = 0.30;
+const MI_PARTIAL  = 0.05;
 
-VOCAB, BINS = 256, 16
+// ─────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────
+const histL = [];
+const histR = [];
+let t = 0;
 
-def H(x):
-    h, _ = np.histogram(x, bins=BINS, range=(0, VOCAB))
-    p = h / max(h.sum(), 1); p = p[p > 0]
-    return float(-(p * np.log2(p)).sum())
-
-def H_joint(L, R):
-    jh, *_ = np.histogram2d(L, R, bins=BINS, range=[[0, VOCAB], [0, VOCAB]])
-    p = jh / max(jh.sum(), 1); p = p[p > 0]
-    return float(-(p * np.log2(p)).sum())
-
-def emergence(L, R):
-    return max(0.0, H(L) + H(R) - H_joint(L, R))
-
-def engine_step(t, N=1024, coupling=0.8):
-    """Tension wave couples L and R — integration at byte level."""
-    rng = np.random.default_rng(t)
-    L = rng.integers(0, VOCAB, N)
-    R = rng.integers(0, VOCAB, N)
-    w = ((np.sin(np.linspace(0, 4 * np.pi, N) + t * 0.2) + 1) * 127).astype(int)
-    L = ((1 - coupling) * L + coupling * w).astype(int) % VOCAB
-    R = ((1 - coupling) * R + coupling * (w ^ (L >> 1))).astype(int) % VOCAB
-    return L, R
-
-# ── thin adapter for the JS layer ────────────────────────────────────────
-def step(t, coupling, N=256):
-    L, R = engine_step(t, N=N, coupling=coupling)
-    return {
-        "L": L.astype(np.uint8).tobytes(),
-        "R": R.astype(np.uint8).tobytes(),
-        "hL": H(L),
-        "hR": H(R),
-        "hJ": H_joint(L, R),
-        "mi": emergence(L, R),
-    }
-`;
-
+// ─────────────────────────────────────────────────────────────────────────
+// DOM refs
+// ─────────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const cvL = $("cv-l"), cvR = $("cv-r"), cvS = $("cv-s");
 const ctxL = cvL.getContext("2d"), ctxR = cvR.getContext("2d"), ctxS = cvS.getContext("2d");
 const slider = $("coup"), coupVal = $("coup-val"), resetBtn = $("reset");
 const elHL = $("m-hl"), elHR = $("m-hr"), elHJ = $("m-hj"), elMI = $("m-mi");
-const elBadge = $("badge"), elStatus = $("status"), elLoadBar = $("loading-bar");
+const elBadge = $("badge"), elStatus = $("status");
 
-let pyodide = null;
-let t = 0;
-let running = false;
-let dimsL, dimsR;
-
-function setLoading(pct, label) {
-  elLoadBar.style.width = pct + "%";
-  if (label) elStatus.textContent = label;
+// ─────────────────────────────────────────────────────────────────────────
+// Engine — shared sine + individual noise (Gemini-style, line-aligned)
+// ─────────────────────────────────────────────────────────────────────────
+function generateSample(coupling, tick) {
+  const common = Math.sin(tick * 0.1);
+  const noiseL = (Math.random() - 0.5) * 2;
+  const noiseR = (Math.random() - 0.5) * 2;
+  return [
+    (1 - coupling) * noiseL + coupling * common,
+    (1 - coupling) * noiseR + coupling * common,
+  ];
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Information theory
+// ─────────────────────────────────────────────────────────────────────────
+function bin(v) {
+  let i = ((v + VRANGE) / (2 * VRANGE) * BINS) | 0;
+  if (i < 0) i = 0;
+  else if (i >= BINS) i = BINS - 1;
+  return i;
+}
+
+function entropy(arr) {
+  if (arr.length === 0) return 0;
+  const counts = new Int32Array(BINS);
+  for (let i = 0; i < arr.length; i++) counts[bin(arr[i])]++;
+  const inv = 1 / arr.length;
+  let H = 0;
+  for (let i = 0; i < BINS; i++) {
+    if (counts[i] > 0) {
+      const p = counts[i] * inv;
+      H -= p * Math.log2(p);
+    }
+  }
+  return H;
+}
+
+function jointEntropy(L, R) {
+  const counts = new Int32Array(BINS * BINS);
+  for (let i = 0; i < L.length; i++) {
+    counts[bin(L[i]) * BINS + bin(R[i])]++;
+  }
+  const inv = 1 / L.length;
+  let H = 0;
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] > 0) {
+      const p = counts[i] * inv;
+      H -= p * Math.log2(p);
+    }
+  }
+  return H;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────
+let dimsL, dimsR;
 function resizeCanvas(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -208,20 +220,41 @@ function resizeCanvas(canvas) {
   canvas.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
   return [rect.width, rect.height];
 }
+function applyResize() {
+  dimsL = resizeCanvas(cvL);
+  dimsR = resizeCanvas(cvR);
+}
+applyResize();
+window.addEventListener("resize", applyResize);
+
+function valueToY(v, h) {
+  // map [-VRANGE, +VRANGE] → [h*0.92, h*0.08]
+  const norm = (v + VRANGE) / (2 * VRANGE);
+  return h - (norm * h * 0.84 + h * 0.08);
+}
 
 function drawStream(ctx, arr, color, w, h) {
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "rgba(35, 39, 48, 0.5)";
+  ctx.fillStyle = "rgba(35, 39, 48, 0.55)";
   ctx.fillRect(0, 0, w, h);
+  if (arr.length < 2) return;
   ctx.beginPath();
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.4;
+  ctx.lineWidth = 1.6;
+  ctx.lineJoin = "round";
+  const denom = HIST_LEN - 1;
   for (let i = 0; i < arr.length; i++) {
-    const x = (i / (arr.length - 1)) * w;
-    const y = h - (arr[i] / 255) * h * 0.85 - h * 0.075;
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    const x = (i / denom) * w;
+    const y = valueToY(arr[i], h);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
   ctx.stroke();
+}
+
+function valueToScatter(v, axisLen, pad) {
+  const norm = (v + VRANGE) / (2 * VRANGE);
+  return norm * (axisLen - 2 * pad) + pad;
 }
 
 function drawScatter(L, R) {
@@ -231,10 +264,15 @@ function drawScatter(L, R) {
   ctxS.lineWidth = 1;
   ctxS.setLineDash([4, 4]);
   ctxS.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
+  // diagonal guide
+  ctxS.beginPath();
+  ctxS.moveTo(pad, h - pad);
+  ctxS.lineTo(w - pad, pad);
+  ctxS.stroke();
   ctxS.setLineDash([]);
   for (let i = 0; i < L.length; i++) {
-    const x = (L[i] / 255) * (w - 2 * pad) + pad;
-    const y = h - ((R[i] / 255) * (h - 2 * pad) + pad);
+    const x = valueToScatter(L[i], w, pad);
+    const y = h - valueToScatter(R[i], h, pad);
     ctxS.fillStyle = i % 2 === 0 ? "rgba(123, 154, 255, 0.55)" : "rgba(168, 230, 104, 0.55)";
     ctxS.beginPath();
     ctxS.arc(x, y, 2.4, 0, Math.PI * 2);
@@ -242,94 +280,65 @@ function drawScatter(L, R) {
   }
 }
 
-function applyResize() {
-  dimsL = resizeCanvas(cvL);
-  dimsR = resizeCanvas(cvR);
-}
-applyResize();
-window.addEventListener("resize", applyResize);
-
-async function init() {
-  setLoading(15, "Pyodide 다운로드 중...");
-  pyodide = await loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
-  });
-
-  setLoading(50, "numpy 로드 중... (~7MB)");
-  await pyodide.loadPackage("numpy");
-
-  setLoading(85, "byte_emergence_demo.py 실행 중...");
-  pyodide.runPython(PY_SOURCE);
-
-  setLoading(100, "준비 완료. 슬라이더를 움직여보세요.");
-  slider.disabled = false;
-  resetBtn.disabled = false;
-  setTimeout(() => { elLoadBar.style.opacity = 0; }, 600);
-
-  running = true;
-  loop();
-}
-
-function tickOnce() {
+// ─────────────────────────────────────────────────────────────────────────
+// Tick — runs at ~30 fps via setInterval
+// ─────────────────────────────────────────────────────────────────────────
+function tick() {
   const c = parseInt(slider.value, 10) / 100;
-  const proxy = pyodide.runPython(`step(${t}, ${c}, N=256)`);
-  const result = proxy.toJs({dict_converter: Object.fromEntries});
-  proxy.destroy();
-
-  const L = new Uint8Array(result.L);
-  const R = new Uint8Array(result.R);
-  const hL = result.hL, hR = result.hR, hJ = result.hJ, mi = result.mi;
-
-  elHL.textContent = hL.toFixed(2);
-  elHR.textContent = hR.toFixed(2);
-  elHJ.textContent = hJ.toFixed(2);
-  elMI.textContent = mi.toFixed(3);
-
-  if (mi > 0.30) {
-    elBadge.classList.add("active");
-    elStatus.textContent = "강한 결합: 창발성 ✨ — 두 스트림이 통합되어 새로운 정보가 발생합니다.";
-  } else if (mi > 0.05) {
-    elBadge.classList.remove("active");
-    elStatus.textContent = "부분적 결합: 유의미한 상호정보량이 발생합니다.";
-  } else {
-    elBadge.classList.remove("active");
-    elStatus.textContent = "독립적인 노이즈 단계: 창발성이 낮습니다.";
+  const [l, r] = generateSample(c, t);
+  histL.push(l);
+  histR.push(r);
+  if (histL.length > HIST_LEN) {
+    histL.shift();
+    histR.shift();
   }
 
-  drawStream(ctxL, L, "#7b9aff", dimsL[0], dimsL[1]);
-  drawStream(ctxR, R, "#a8e668", dimsR[0], dimsR[1]);
-  drawScatter(L, R);
+  if (histL.length >= MIN_FOR_METRICS) {
+    const hL = entropy(histL);
+    const hR = entropy(histR);
+    const hJ = jointEntropy(histL, histR);
+    const mi = Math.max(0, hL + hR - hJ);
+
+    elHL.textContent = hL.toFixed(2);
+    elHR.textContent = hR.toFixed(2);
+    elHJ.textContent = hJ.toFixed(2);
+    elMI.textContent = mi.toFixed(3);
+
+    if (mi > MI_EMERGENT) {
+      elBadge.classList.add("active");
+      elStatus.textContent = "강한 결합: 창발성 ✨ — 두 스트림이 통합되어 새로운 정보가 발생합니다.";
+    } else if (mi > MI_PARTIAL) {
+      elBadge.classList.remove("active");
+      elStatus.textContent = "부분적 결합: 유의미한 상호정보량이 발생합니다.";
+    } else {
+      elBadge.classList.remove("active");
+      elStatus.textContent = "독립적인 노이즈 단계: 창발성이 낮습니다.";
+    }
+  }
+
+  drawStream(ctxL, histL, "#7b9aff", dimsL[0], dimsL[1]);
+  drawStream(ctxR, histR, "#a8e668", dimsR[0], dimsR[1]);
+  drawScatter(histL, histR);
 
   t++;
 }
 
-function loop() {
-  if (!running) return;
-  try {
-    tickOnce();
-  } catch (e) {
-    elStatus.textContent = "런타임 에러: " + e.message;
-    console.error(e);
-    running = false;
-    return;
-  }
-  // Pyodide 기준 ~20-30fps; 너무 빠르면 GC 부담.
-  setTimeout(() => requestAnimationFrame(loop), 30);
-}
-
+// ─────────────────────────────────────────────────────────────────────────
+// Wiring
+// ─────────────────────────────────────────────────────────────────────────
 slider.addEventListener("input", () => {
   coupVal.textContent = (parseInt(slider.value, 10) / 100).toFixed(2);
 });
 resetBtn.addEventListener("click", () => {
+  histL.length = 0;
+  histR.length = 0;
   t = 0;
   slider.value = 80;
   coupVal.textContent = "0.80";
+  elBadge.classList.remove("active");
 });
 
-init().catch(err => {
-  elStatus.textContent = "Pyodide 로딩 실패: " + err.message;
-  console.error(err);
-});
+setInterval(tick, TICK_MS);
 </script>
 </body>
 </html>
