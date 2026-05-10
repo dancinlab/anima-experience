@@ -129,8 +129,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────
-const TICK_MS  = 33;     // ~30 fps
-const HIST_LEN = 250;    // rolling buffer length (~8 s of history at 30 fps)
+const TICK_MS  = 16;     // ~60 fps
+const HIST_LEN = 250;    // rolling buffer length (~4 s of history at 60 fps)
 const BINS     = 12;     // entropy histogram bins
 const VRANGE   = 1.5;    // value range [-VRANGE, +VRANGE]
 const MIN_FOR_METRICS = 50;
@@ -281,7 +281,7 @@ function drawScatter(L, R) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Tick — runs at ~30 fps via setInterval
+// Tick — runs at ~60 fps via setInterval
 // ─────────────────────────────────────────────────────────────────────────
 function tick() {
   const c = parseInt(slider.value, 10) / 100;
