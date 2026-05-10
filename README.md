@@ -19,10 +19,11 @@ Sister of [need-singularity/anima](https://github.com/need-singularity/anima),
 [hexa-mind](https://github.com/need-singularity/hexa-mind),
 [hexa-brain](https://github.com/need-singularity/hexa-brain).
 
-## Tabs (9)
+## Tabs (10)
 
 | Tab | What it shows |
 |-----|---------------|
+| ✨ Emergence | Realtime 60 fps mutual-information visualizer — port of `byte_emergence_demo.py`; coupling slider drives live H(L), H(R), H(L,R), and emergence (MI) metrics with stream + scatter + EMERGENT badge |
 | 🌐 Tension Link | 5-channel meta-fingerprint broadcast (concept / context / meaning / authenticity / sender) — the anima-native answer to multi-instance interaction |
 | 📊 Φ★ Explorer | Substrate-level integrated-information measurements across CLM v4 / Qwen3 / Mistral / Llama backbones |
 | 📜 Paradigm Timeline | Milestone scrubber across the paradigm-a → paradigm-j+ research arc |

@@ -6,6 +6,7 @@ consciousness research stack as a single multi-tab interactive page.
 import gradio as gr
 
 from tabs import (
+    emergence,
     tension_link,
     phi_explorer,
     paradigm_timeline,
@@ -25,6 +26,8 @@ with gr.Blocks(title="Anima Experience", theme=gr.themes.Soft()) as demo:
         "brain-likeness, and the hexa-* family map."
     )
     with gr.Tabs():
+        with gr.Tab("✨ Emergence"):
+            emergence.build()
         with gr.Tab("🌐 Tension Link"):
             tension_link.build()
         with gr.Tab("📊 Φ★ Explorer"):

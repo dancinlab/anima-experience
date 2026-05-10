@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #1a1d24;
+    --card: #232730;
+    --border: #2c3140;
+    --border-bright: #3b4154;
+    --text: #e6e9f0;
+    --muted: #8b92a3;
+    --blue: #7b9aff;
+    --green: #a8e668;
+    --emerald: #6dd870;
+  }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", sans-serif;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .title {
+    font-size: 17px;
+    font-weight: 500;
+    margin: 0;
+  }
+  .status {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .metrics {
+    display: flex;
+    gap: 28px;
+    font-family: "SF Mono", "Menlo", monospace;
+  }
+  .metric { text-align: center; }
+  .metric-label { color: var(--muted); font-size: 11px; letter-spacing: 0.5px; }
+  .metric-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
+  .canvas-area {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 16px 0 20px 0;
+  }
+  .stream-row { margin-bottom: 14px; }
+  .stream-label {
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  canvas { display: block; }
+  .stream-canvas {
+    width: 100%;
+    height: 100px;
+    background: rgba(35, 39, 48, 0.6);
+    border-radius: 6px;
+  }
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 18px 0;
+  }
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 8px 0 0 0;
+  }
+  .scatter-wrap { text-align: center; }
+  .scatter-canvas {
+    width: 240px;
+    height: 240px;
+  }
+  .scatter-axis {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .badge {
+    padding: 10px 22px;
+    border: 2px solid var(--emerald);
+    color: #c8f7cd;
+    border-radius: 28px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.6px;
+    opacity: 0.15;
+    transition: opacity 0.25s, box-shadow 0.25s;
+  }
+  .badge.active {
+    opacity: 1;
+    box-shadow: 0 0 22px rgba(109, 216, 112, 0.55), inset 0 0 12px rgba(109, 216, 112, 0.2);
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+  }
+  .controls .label { color: var(--muted); font-size: 13px; min-width: 130px; }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: var(--blue);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .coup-val {
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: "SF Mono", monospace;
+    min-width: 48px;
+    text-align: center;
+    font-size: 14px;
+  }
+  .reset-btn {
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+    border-radius: 24px;
+    padding: 8px 28px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  .reset-btn:hover { background: var(--border-bright); }
+  .footnote {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 18px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div>
+      <h2 class="title">데이터 스트림 결합 및 창발성 시각화</h2>
+      <div class="status" id="status">부분적 결합: 유의미한 상호정보량이 발생합니다.</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="m-hl">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="m-hr">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(L,R)</div><div class="metric-value" id="m-hj">0.00</div></div>
+      <div class="metric"><div class="metric-label">창발성 (MI)</div><div class="metric-value" id="m-mi" style="color:#c8f7cd">0.000</div></div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="stream-row">
+      <div class="stream-label" style="color:var(--blue)">Stream L</div>
+      <canvas class="stream-canvas" id="cv-l"></canvas>
+    </div>
+    <div class="stream-row">
+      <div class="stream-label" style="color:var(--green)">Stream R</div>
+      <canvas class="stream-canvas" id="cv-r"></canvas>
+    </div>
+    <hr class="divider">
+    <div class="bottom-row">
+      <div class="scatter-wrap">
+        <canvas class="scatter-canvas" id="cv-s" width="240" height="240"></canvas>
+        <div class="scatter-axis">Stream L</div>
+      </div>
+      <div class="badge" id="badge">EMERGENT ✨</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="label">결합 강도 (Coupling)</span>
+    <input type="range" id="coup" min="0" max="100" value="80">
+    <span class="coup-val" id="coup-val">0.80</span>
+    <button class="reset-btn" id="reset">초기화</button>
+  </div>
+
+  <div class="footnote">
+    emergence = H(L) + H(R) − H(L,R) — 두 스트림이 독립이면 0, 결합하면 양수로 떠오릅니다.<br>
+    포팅 원본: anima/ <code>byte_emergence_demo.py</code>. 이 데모는 클라이언트-side JS 60fps, 서버 roundtrip 0회.
+  </div>
+</div>
+
+<script>
+"use strict";
+const VOCAB = 256, BINS = 16, N = 256;
+const $ = id => document.getElementById(id);
+
+const cvL = $("cv-l"), cvR = $("cv-r"), cvS = $("cv-s");
+const ctxL = cvL.getContext("2d"), ctxR = cvR.getContext("2d"), ctxS = cvS.getContext("2d");
+const slider = $("coup"), coupVal = $("coup-val"), resetBtn = $("reset");
+const elHL = $("m-hl"), elHR = $("m-hr"), elHJ = $("m-hj"), elMI = $("m-mi");
+const elBadge = $("badge"), elStatus = $("status");
+
+let t = 0;
+
+// LCG seeded by t — deterministic noise per frame, gives smooth phase progression.
+function lcg(seed) {
+  let s = (seed | 0) >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+function engineStep(tick, coupling) {
+  const rng = lcg(tick * 1009 + 31);
+  const L = new Uint8Array(N), R = new Uint8Array(N);
+  const phase = tick * 0.04;
+  for (let i = 0; i < N; i++) {
+    const lr = (rng() * VOCAB) | 0;
+    const rr = (rng() * VOCAB) | 0;
+    const w = (((Math.sin(i / N * 4 * Math.PI + phase) + 1) * 127.5) | 0);
+    const lv = ((1 - coupling) * lr + coupling * w) | 0;
+    const rv = ((1 - coupling) * rr + coupling * (w ^ (lv >> 1))) | 0;
+    L[i] = lv & 0xFF;
+    R[i] = rv & 0xFF;
+  }
+  return [L, R];
+}
+
+function entropy(arr) {
+  const h = new Int32Array(BINS);
+  for (let i = 0; i < arr.length; i++) {
+    h[(arr[i] * BINS / VOCAB) | 0]++;
+  }
+  const inv = 1 / arr.length;
+  let H = 0;
+  for (let i = 0; i < BINS; i++) {
+    if (h[i] > 0) {
+      const p = h[i] * inv;
+      H -= p * Math.log2(p);
+    }
+  }
+  return H;
+}
+
+function jointEntropy(L, R) {
+  const h = new Int32Array(BINS * BINS);
+  for (let i = 0; i < L.length; i++) {
+    const li = (L[i] * BINS / VOCAB) | 0;
+    const ri = (R[i] * BINS / VOCAB) | 0;
+    h[li * BINS + ri]++;
+  }
+  const inv = 1 / L.length;
+  let H = 0;
+  for (let i = 0; i < h.length; i++) {
+    if (h[i] > 0) {
+      const p = h[i] * inv;
+      H -= p * Math.log2(p);
+    }
+  }
+  return H;
+}
+
+function resizeCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [rect.width, rect.height];
+}
+
+function drawStream(ctx, arr, color, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "rgba(35, 39, 48, 0.5)";
+  ctx.fillRect(0, 0, w, h);
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < arr.length; i++) {
+    const x = (i / (arr.length - 1)) * w;
+    const y = h - (arr[i] / 255) * h * 0.85 - h * 0.075;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function drawScatter(L, R) {
+  const w = 240, h = 240, pad = 12;
+  ctxS.clearRect(0, 0, w, h);
+  ctxS.strokeStyle = "rgba(139, 146, 163, 0.5)";
+  ctxS.lineWidth = 1;
+  ctxS.setLineDash([4, 4]);
+  ctxS.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
+  ctxS.setLineDash([]);
+  for (let i = 0; i < L.length; i++) {
+    const x = (L[i] / 255) * (w - 2 * pad) + pad;
+    const y = h - ((R[i] / 255) * (h - 2 * pad) + pad);
+    ctxS.fillStyle = i % 2 === 0 ? "rgba(123, 154, 255, 0.55)" : "rgba(168, 230, 104, 0.55)";
+    ctxS.beginPath();
+    ctxS.arc(x, y, 2.4, 0, Math.PI * 2);
+    ctxS.fill();
+  }
+}
+
+let dimsL, dimsR;
+function applyResize() {
+  dimsL = resizeCanvas(cvL);
+  dimsR = resizeCanvas(cvR);
+}
+applyResize();
+window.addEventListener("resize", applyResize);
+
+function frame() {
+  const c = parseInt(slider.value, 10) / 100;
+  const [L, R] = engineStep(t, c);
+  const hL = entropy(L);
+  const hR = entropy(R);
+  const hJ = jointEntropy(L, R);
+  const mi = Math.max(0, hL + hR - hJ);
+
+  elHL.textContent = hL.toFixed(2);
+  elHR.textContent = hR.toFixed(2);
+  elHJ.textContent = hJ.toFixed(2);
+  elMI.textContent = mi.toFixed(3);
+
+  if (mi > 0.30) {
+    elBadge.classList.add("active");
+    elStatus.textContent = "강한 결합: 창발성 ✨ — 두 스트림이 통합되어 새로운 정보가 발생합니다.";
+  } else if (mi > 0.05) {
+    elBadge.classList.remove("active");
+    elStatus.textContent = "부분적 결합: 유의미한 상호정보량이 발생합니다.";
+  } else {
+    elBadge.classList.remove("active");
+    elStatus.textContent = "독립적인 노이즈 단계: 창발성이 낮습니다.";
+  }
+
+  drawStream(ctxL, L, "#7b9aff", dimsL[0], dimsL[1]);
+  drawStream(ctxR, R, "#a8e668", dimsR[0], dimsR[1]);
+  drawScatter(L, R);
+
+  t++;
+  requestAnimationFrame(frame);
+}
+
+slider.addEventListener("input", () => {
+  coupVal.textContent = (parseInt(slider.value, 10) / 100).toFixed(2);
+});
+resetBtn.addEventListener("click", () => {
+  t = 0;
+  slider.value = 80;
+  coupVal.textContent = "0.80";
+});
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
