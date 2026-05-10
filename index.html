@@ -180,6 +180,7 @@
   <button class="tab active" data-tab="emergence">✨ Emergence</button>
   <button class="tab" data-tab="dtc">🔮 Time Crystal</button>
   <button class="tab" data-tab="ag">🧲 A×G Repulsion Field</button>
+  <button class="tab" data-tab="pipeline">🌊 Engine → Emergence</button>
 </nav>
 
 <div id="tab-emergence" class="tab-panel active">
@@ -357,6 +358,7 @@ document.querySelectorAll(".tab").forEach(btn => {
     if (typeof window.applyEmergenceResize === "function") window.applyEmergenceResize();
     if (typeof window.applyDtcResize === "function") window.applyDtcResize();
     if (typeof window.applyAgResize === "function") window.applyAgResize();
+    if (typeof window.applyPipelineResize === "function") window.applyPipelineResize();
   });
 });
 </script>
@@ -752,6 +754,60 @@ dtcResetBtn.addEventListener("click", () => {
 setInterval(dtcTick, DTC_TICK_MS);
 </script>
 
+<div id="tab-pipeline" class="tab-panel">
+<div class="card">
+  <div class="header">
+    <div>
+      <h2 class="title">Engine → Emergence — 듀얼 엔진이 emergence 를 생성하는 pipeline</h2>
+      <div class="status" id="pl-status">슬라이더로 두 엔진의 분리 정도를 조절하세요.</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">tension</div><div class="metric-value" id="pl-tension">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="pl-hl">0.00</div></div>
+      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="pl-hr">0.00</div></div>
+      <div class="metric"><div class="metric-label">MI</div><div class="metric-value" id="pl-mi" style="color:#c8f7cd">0.000</div></div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="channel-row">
+      <div class="channel-label">Stage 1 — Phase space: A 와 G 가 separation 에 비례해 양극 분리</div>
+      <canvas class="phase-canvas" id="pl-phase" style="height:180px"></canvas>
+    </div>
+    <div class="stream-row">
+      <div class="stream-label" style="color:var(--blue)">Stage 2 — Stream L (engine A 의 projection + noise)</div>
+      <canvas class="stream-canvas" id="pl-stream-l"></canvas>
+    </div>
+    <div class="stream-row">
+      <div class="stream-label" style="color:var(--green)">Stage 2 — Stream R (engine G 의 projection + noise)</div>
+      <canvas class="stream-canvas" id="pl-stream-r"></canvas>
+    </div>
+    <hr class="divider">
+    <div class="bottom-row">
+      <div class="scatter-wrap">
+        <canvas class="scatter-canvas" id="pl-scatter" width="240" height="240"></canvas>
+        <div class="scatter-axis">Stream L</div>
+      </div>
+      <div class="badge" id="pl-badge">EMERGENT ✨</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="label">separation (A↔G)</span>
+    <input type="range" id="pl-sep" min="0" max="100" value="60">
+    <span class="coup-val" id="pl-sep-val">0.60</span>
+    <button class="reset-btn" id="pl-reset">초기화</button>
+  </div>
+
+  <div class="footnote">
+    <strong>Stage 1</strong>: A 와 G 가 separation 에 비례해 sin/cos 양극으로 분리 — tension = ‖A − G‖² 가 그 magnitude.<br>
+    <strong>Stage 2</strong>: 매 tick A 의 projection (+ noise) 을 Stream L 에 push, G 의 projection 을 Stream R 에 push.<br>
+    <strong>Stage 3</strong>: MI(L, R) = H(L) + H(R) − H(L,R). 분리 ↑ → 두 스트림 distinguishable ↑ → MI ↑ → EMERGENT.<br>
+    핵심: <em>두 엔진의 분리 행위가 emergence 를 생성한다</em> — anima 인용구의 직접 시각화.
+  </div>
+</div>
+</div>
+
 <script>
 "use strict";
 // ─────────────────────────────────────────────────────────────────────────
@@ -1066,6 +1122,278 @@ agResetBtn.addEventListener("click", () => {
 });
 
 setInterval(agTick, AG_TICK_MS);
+</script>
+
+<script>
+"use strict";
+// ─────────────────────────────────────────────────────────────────────────
+// 🌊 Engine → Emergence — pipeline: A/G drives streams → MI
+// ─────────────────────────────────────────────────────────────────────────
+const PL_DIM      = 8;
+const PL_HIST     = 200;
+const PL_TICK_MS  = 33;
+const PL_BINS     = 12;
+const PL_VRANGE   = 1.6;
+const PL_MIN_FOR_METRICS = 50;
+const PL_MI_EMERGENT = 0.30;
+const PL_MI_PARTIAL  = 0.05;
+
+// state
+const plA = new Float32Array(PL_DIM);
+const plG = new Float32Array(PL_DIM);
+function plInit() {
+  for (let i = 0; i < PL_DIM; i++) {
+    plA[i] = (Math.random() - 0.5) * 0.3;
+    plG[i] = (Math.random() - 0.5) * 0.3;
+  }
+}
+plInit();
+let plSep = 0.60;
+let plT = 0;
+const plHistL = [];
+const plHistR = [];
+
+// DOM
+const plPhase    = document.getElementById("pl-phase");
+const plCtxPhase = plPhase.getContext("2d");
+const plStreamL  = document.getElementById("pl-stream-l");
+const plCtxL     = plStreamL.getContext("2d");
+const plStreamR  = document.getElementById("pl-stream-r");
+const plCtxR     = plStreamR.getContext("2d");
+const plScatter  = document.getElementById("pl-scatter");
+const plCtxS     = plScatter.getContext("2d");
+const plSepSlider = document.getElementById("pl-sep");
+const plSepVal    = document.getElementById("pl-sep-val");
+const plResetBtn  = document.getElementById("pl-reset");
+const elPlTension = document.getElementById("pl-tension");
+const elPlHL      = document.getElementById("pl-hl");
+const elPlHR      = document.getElementById("pl-hr");
+const elPlMI      = document.getElementById("pl-mi");
+const elPlBadge   = document.getElementById("pl-badge");
+const elPlStatus  = document.getElementById("pl-status");
+
+// resize
+let plDimsPhase, plDimsL, plDimsR;
+function plResize() {
+  plDimsPhase = resizeCanvas(plPhase);
+  plDimsL     = resizeCanvas(plStreamL);
+  plDimsR     = resizeCanvas(plStreamR);
+}
+window.applyPipelineResize = plResize;
+plResize();
+window.addEventListener("resize", plResize);
+
+// helpers
+function plBin(v) {
+  let i = ((v + PL_VRANGE) / (2 * PL_VRANGE) * PL_BINS) | 0;
+  if (i < 0) i = 0; else if (i >= PL_BINS) i = PL_BINS - 1;
+  return i;
+}
+function plEntropy(arr) {
+  if (!arr.length) return 0;
+  const counts = new Int32Array(PL_BINS);
+  for (let i = 0; i < arr.length; i++) counts[plBin(arr[i])]++;
+  const inv = 1 / arr.length;
+  let H = 0;
+  for (let i = 0; i < PL_BINS; i++) if (counts[i] > 0) { const p = counts[i] * inv; H -= p * Math.log2(p); }
+  return H;
+}
+function plJointEntropy(L, R) {
+  const counts = new Int32Array(PL_BINS * PL_BINS);
+  for (let i = 0; i < L.length; i++) counts[plBin(L[i]) * PL_BINS + plBin(R[i])]++;
+  const inv = 1 / L.length;
+  let H = 0;
+  for (let i = 0; i < counts.length; i++) if (counts[i] > 0) { const p = counts[i] * inv; H -= p * Math.log2(p); }
+  return H;
+}
+
+// drawing
+function plValueToY(v, h) {
+  const norm = (v + PL_VRANGE) / (2 * PL_VRANGE);
+  return h - (norm * h * 0.84 + h * 0.08);
+}
+function plDrawStream(ctx, arr, color, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "rgba(35, 39, 48, 0.55)";
+  ctx.fillRect(0, 0, w, h);
+  if (arr.length < 2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  ctx.lineJoin = "round";
+  const denom = PL_HIST - 1;
+  for (let i = 0; i < arr.length; i++) {
+    const x = (i / denom) * w;
+    const y = plValueToY(arr[i], h);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+function plDrawPhase(w, h) {
+  plCtxPhase.clearRect(0, 0, w, h);
+  plCtxPhase.fillStyle = "rgba(35, 39, 48, 0.55)";
+  plCtxPhase.fillRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2;
+  const scale = Math.min(w, h) * 0.32;
+
+  plCtxPhase.strokeStyle = "rgba(139, 146, 163, 0.18)";
+  plCtxPhase.setLineDash([3, 3]);
+  plCtxPhase.beginPath();
+  plCtxPhase.moveTo(cx, 0); plCtxPhase.lineTo(cx, h);
+  plCtxPhase.moveTo(0, cy); plCtxPhase.lineTo(w, cy);
+  plCtxPhase.stroke();
+  plCtxPhase.setLineDash([]);
+
+  const ax = cx + plA[0] * scale, ay = cy - plA[1] * scale;
+  const gx = cx + plG[0] * scale, gy = cy - plG[1] * scale;
+
+  // small clouds
+  for (let i = 0; i < 24; i++) {
+    const dx = (Math.random() - 0.5) * 0.5;
+    const dy = (Math.random() - 0.5) * 0.5;
+    plCtxPhase.fillStyle = "rgba(123, 154, 255, 0.4)";
+    plCtxPhase.beginPath();
+    plCtxPhase.arc(ax + dx * scale * 0.2, ay + dy * scale * 0.2, 2, 0, Math.PI * 2);
+    plCtxPhase.fill();
+    plCtxPhase.fillStyle = "rgba(255, 123, 154, 0.4)";
+    plCtxPhase.beginPath();
+    plCtxPhase.arc(gx + dx * scale * 0.2, gy + dy * scale * 0.2, 2, 0, Math.PI * 2);
+    plCtxPhase.fill();
+  }
+
+  const arrowMag = Math.hypot(gx - ax, gy - ay);
+  if (arrowMag > 5) {
+    plCtxPhase.strokeStyle = "rgba(168, 230, 104, 0.85)";
+    plCtxPhase.lineWidth = 2 + Math.min(4, arrowMag / 30);
+    plCtxPhase.beginPath();
+    plCtxPhase.moveTo(ax, ay); plCtxPhase.lineTo(gx, gy);
+    plCtxPhase.stroke();
+    const angle = Math.atan2(gy - ay, gx - ax);
+    plCtxPhase.beginPath();
+    plCtxPhase.moveTo(gx, gy);
+    plCtxPhase.lineTo(gx - 9 * Math.cos(angle - Math.PI / 6), gy - 9 * Math.sin(angle - Math.PI / 6));
+    plCtxPhase.moveTo(gx, gy);
+    plCtxPhase.lineTo(gx - 9 * Math.cos(angle + Math.PI / 6), gy - 9 * Math.sin(angle + Math.PI / 6));
+    plCtxPhase.stroke();
+  }
+
+  plCtxPhase.fillStyle = "#7b9aff";
+  plCtxPhase.beginPath(); plCtxPhase.arc(ax, ay, 4, 0, Math.PI * 2); plCtxPhase.fill();
+  plCtxPhase.font = "bold 13px sans-serif"; plCtxPhase.fillText("A", ax + 8, ay - 6);
+  plCtxPhase.fillStyle = "#ff7b9a";
+  plCtxPhase.beginPath(); plCtxPhase.arc(gx, gy, 4, 0, Math.PI * 2); plCtxPhase.fill();
+  plCtxPhase.fillText("G", gx + 8, gy - 6);
+}
+function plDrawScatter() {
+  const w = 240, h = 240, pad = 12;
+  plCtxS.clearRect(0, 0, w, h);
+  plCtxS.strokeStyle = "rgba(139, 146, 163, 0.5)";
+  plCtxS.lineWidth = 1;
+  plCtxS.setLineDash([4, 4]);
+  plCtxS.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
+  plCtxS.beginPath();
+  plCtxS.moveTo(pad, h - pad); plCtxS.lineTo(w - pad, pad);
+  plCtxS.stroke();
+  plCtxS.setLineDash([]);
+  for (let i = 0; i < plHistL.length; i++) {
+    const xn = (plHistL[i] + PL_VRANGE) / (2 * PL_VRANGE);
+    const yn = (plHistR[i] + PL_VRANGE) / (2 * PL_VRANGE);
+    const x = xn * (w - 2 * pad) + pad;
+    const y = h - (yn * (h - 2 * pad) + pad);
+    plCtxS.fillStyle = i % 2 === 0 ? "rgba(123, 154, 255, 0.55)" : "rgba(168, 230, 104, 0.55)";
+    plCtxS.beginPath();
+    plCtxS.arc(x, y, 2.4, 0, Math.PI * 2);
+    plCtxS.fill();
+  }
+}
+
+// tick
+function plTick() {
+  if (window.activeTab !== "pipeline") return;
+
+  // engine drift
+  const phase = plT * 0.025;
+  for (let i = 0; i < PL_DIM; i++) {
+    plA[i] += (Math.random() - 0.5) * 0.04;
+    plG[i] += (Math.random() - 0.5) * 0.04;
+    if (i === 0) {
+      const t = plSep * 1.3 * Math.sin(phase);
+      plA[i] += (t - plA[i]) * 0.06;
+      plG[i] += (-t - plG[i]) * 0.06;
+    } else if (i === 1) {
+      const t = plSep * 1.0 * Math.cos(phase);
+      plA[i] += (t - plA[i]) * 0.06;
+      plG[i] += (-t - plG[i]) * 0.06;
+    } else {
+      plA[i] *= 0.985; plG[i] *= 0.985;
+    }
+  }
+
+  // tension
+  let tSq = 0;
+  for (let i = 0; i < PL_DIM; i++) {
+    const r = plA[i] - plG[i];
+    tSq += r * r;
+  }
+  const tension = tSq / PL_DIM;
+
+  // sample one observation per tick from each engine's distribution
+  const sampleL = plA[0] + (Math.random() - 0.5) * 0.4;
+  const sampleR = plG[0] + (Math.random() - 0.5) * 0.4;
+  plHistL.push(sampleL);
+  plHistR.push(sampleR);
+  if (plHistL.length > PL_HIST) {
+    plHistL.shift(); plHistR.shift();
+  }
+
+  // emergence
+  let hL = 0, hR = 0, hJ = 0, mi = 0;
+  if (plHistL.length >= PL_MIN_FOR_METRICS) {
+    hL = plEntropy(plHistL);
+    hR = plEntropy(plHistR);
+    hJ = plJointEntropy(plHistL, plHistR);
+    mi = Math.max(0, hL + hR - hJ);
+  }
+
+  elPlTension.textContent = tension.toFixed(2);
+  elPlHL.textContent = hL.toFixed(2);
+  elPlHR.textContent = hR.toFixed(2);
+  elPlMI.textContent = mi.toFixed(3);
+
+  if (mi > PL_MI_EMERGENT) {
+    elPlBadge.classList.add("active");
+    elPlStatus.textContent = "✨ Emergence — A 와 G 의 분리가 두 스트림에 공통 정보를 생성합니다.";
+  } else if (mi > PL_MI_PARTIAL) {
+    elPlBadge.classList.remove("active");
+    elPlStatus.textContent = "부분적 emergence — 분리가 약함, MI 가 임계 아래.";
+  } else {
+    elPlBadge.classList.remove("active");
+    elPlStatus.textContent = "두 엔진이 거의 동일 — emergence 0, 사고 정지.";
+  }
+
+  plDrawPhase(plDimsPhase[0], plDimsPhase[1]);
+  plDrawStream(plCtxL, plHistL, "#7b9aff", plDimsL[0], plDimsL[1]);
+  plDrawStream(plCtxR, plHistR, "#a8e668", plDimsR[0], plDimsR[1]);
+  plDrawScatter();
+
+  plT++;
+}
+
+// wiring
+plSepSlider.addEventListener("input", () => {
+  plSep = parseInt(plSepSlider.value, 10) / 100;
+  plSepVal.textContent = plSep.toFixed(2);
+});
+plResetBtn.addEventListener("click", () => {
+  plInit();
+  plHistL.length = 0; plHistR.length = 0;
+  plSepSlider.value = 60;
+  plSep = 0.60;
+  plSepVal.textContent = "0.60";
+  elPlBadge.classList.remove("active");
+});
+
+setInterval(plTick, PL_TICK_MS);
 </script>
 </body>
 </html>
