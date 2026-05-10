@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<title>Anima Emergence — byte-level mutual information</title>
 <style>
   :root {
     --bg: #1a1d24;
@@ -29,71 +30,23 @@
     max-width: 1100px;
     margin: 0 auto;
   }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
-  }
-  .title {
-    font-size: 17px;
-    font-weight: 500;
-    margin: 0;
-  }
-  .status {
-    color: var(--muted);
-    font-size: 13px;
-    margin-top: 6px;
-  }
-  .metrics {
-    display: flex;
-    gap: 28px;
-    font-family: "SF Mono", "Menlo", monospace;
-  }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .title { font-size: 17px; font-weight: 500; margin: 0; }
+  .status { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .metrics { display: flex; gap: 28px; font-family: "SF Mono", "Menlo", monospace; }
   .metric { text-align: center; }
   .metric-label { color: var(--muted); font-size: 11px; letter-spacing: 0.5px; }
   .metric-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
-  .canvas-area {
-    background: var(--bg);
-    border-radius: 10px;
-    padding: 20px;
-    margin: 16px 0 20px 0;
-  }
+  .canvas-area { background: var(--bg); border-radius: 10px; padding: 20px; margin: 16px 0 20px 0; }
   .stream-row { margin-bottom: 14px; }
-  .stream-label {
-    font-weight: 600;
-    margin-bottom: 6px;
-    font-size: 14px;
-  }
+  .stream-label { font-weight: 600; margin-bottom: 6px; font-size: 14px; }
   canvas { display: block; }
-  .stream-canvas {
-    width: 100%;
-    height: 100px;
-    background: rgba(35, 39, 48, 0.6);
-    border-radius: 6px;
-  }
-  hr.divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 18px 0;
-  }
-  .bottom-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 32px;
-    padding: 8px 0 0 0;
-  }
+  .stream-canvas { width: 100%; height: 100px; background: rgba(35, 39, 48, 0.6); border-radius: 6px; }
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .bottom-row { display: flex; align-items: center; justify-content: center; gap: 32px; padding: 8px 0 0 0; }
   .scatter-wrap { text-align: center; }
-  .scatter-canvas {
-    width: 240px;
-    height: 240px;
-  }
-  .scatter-axis {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 4px;
-  }
+  .scatter-canvas { width: 240px; height: 240px; }
+  .scatter-axis { color: var(--muted); font-size: 12px; margin-top: 4px; }
   .badge {
     padding: 10px 22px;
     border: 2px solid var(--emerald);
@@ -102,65 +55,33 @@
     font-weight: 700;
     font-size: 14px;
     letter-spacing: 0.6px;
-    opacity: 0.15;
-    transition: opacity 0.25s, box-shadow 0.25s;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s, box-shadow 0.25s, visibility 0s linear 0.25s;
   }
   .badge.active {
     opacity: 1;
+    visibility: visible;
     box-shadow: 0 0 22px rgba(109, 216, 112, 0.55), inset 0 0 12px rgba(109, 216, 112, 0.2);
+    transition: opacity 0.25s, box-shadow 0.25s, visibility 0s linear 0s;
   }
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-    margin-top: 16px;
-  }
+  .controls { display: flex; align-items: center; gap: 16px; padding-top: 18px; border-top: 1px solid var(--border); margin-top: 16px; }
   .controls .label { color: var(--muted); font-size: 13px; min-width: 130px; }
-  input[type="range"] {
-    flex: 1;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    outline: none;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px; height: 18px;
-    background: var(--blue);
-    border-radius: 50%;
-    cursor: pointer;
-  }
-  .coup-val {
-    background: var(--bg);
-    border: 1px solid var(--border-bright);
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-family: "SF Mono", monospace;
-    min-width: 48px;
-    text-align: center;
-    font-size: 14px;
-  }
-  .reset-btn {
-    background: var(--border);
-    color: var(--text);
-    border: 1px solid var(--border-bright);
-    border-radius: 24px;
-    padding: 8px 28px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background 0.15s;
-  }
+  input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: var(--border); border-radius: 3px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--blue); border-radius: 50%; cursor: pointer; }
+  .coup-val { background: var(--bg); border: 1px solid var(--border-bright); border-radius: 8px; padding: 6px 14px; font-family: "SF Mono", monospace; min-width: 48px; text-align: center; font-size: 14px; }
+  .reset-btn { background: var(--border); color: var(--text); border: 1px solid var(--border-bright); border-radius: 24px; padding: 8px 28px; cursor: pointer; font-size: 13px; transition: background 0.15s; }
   .reset-btn:hover { background: var(--border-bright); }
-  .footnote {
-    color: var(--muted);
-    font-size: 12px;
-    text-align: center;
-    margin-top: 18px;
-    line-height: 1.6;
+  .reset-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .footnote { color: var(--muted); font-size: 12px; text-align: center; margin-top: 18px; line-height: 1.6; }
+  .footnote code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; }
+  .loading-bar {
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--green));
+    width: 0%;
+    transition: width 0.3s;
+    border-radius: 2px;
+    margin-top: 4px;
   }
 </style>
 </head>
@@ -169,13 +90,14 @@
   <div class="header">
     <div>
       <h2 class="title">데이터 스트림 결합 및 창발성 시각화</h2>
-      <div class="status" id="status">부분적 결합: 유의미한 상호정보량이 발생합니다.</div>
+      <div class="status" id="status">Pyodide 로딩 중...</div>
+      <div class="loading-bar" id="loading-bar"></div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="m-hl">0.00</div></div>
-      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="m-hr">0.00</div></div>
-      <div class="metric"><div class="metric-label">H(L,R)</div><div class="metric-value" id="m-hj">0.00</div></div>
-      <div class="metric"><div class="metric-label">창발성 (MI)</div><div class="metric-value" id="m-mi" style="color:#c8f7cd">0.000</div></div>
+      <div class="metric"><div class="metric-label">H(L)</div><div class="metric-value" id="m-hl">—</div></div>
+      <div class="metric"><div class="metric-label">H(R)</div><div class="metric-value" id="m-hr">—</div></div>
+      <div class="metric"><div class="metric-label">H(L,R)</div><div class="metric-value" id="m-hj">—</div></div>
+      <div class="metric"><div class="metric-label">창발성 (MI)</div><div class="metric-value" id="m-mi" style="color:#c8f7cd">—</div></div>
     </div>
   </div>
 
@@ -200,87 +122,82 @@
 
   <div class="controls">
     <span class="label">결합 강도 (Coupling)</span>
-    <input type="range" id="coup" min="0" max="100" value="80">
+    <input type="range" id="coup" min="0" max="100" value="80" disabled>
     <span class="coup-val" id="coup-val">0.80</span>
-    <button class="reset-btn" id="reset">초기화</button>
+    <button class="reset-btn" id="reset" disabled>초기화</button>
   </div>
 
   <div class="footnote">
     emergence = H(L) + H(R) − H(L,R) — 두 스트림이 독립이면 0, 결합하면 양수로 떠오릅니다.<br>
-    포팅 원본: anima/ <code>byte_emergence_demo.py</code>. 이 데모는 클라이언트-side JS 60fps, 서버 roundtrip 0회.
+    원본: <code>anima/byte_emergence_demo.py</code> 를 Pyodide 로 브라우저에서 100% 그대로 실행합니다 (numpy 포함).<br>
+    zigzag 산점도는 <code>w ^ (L &gt;&gt; 1)</code> XOR 결합의 정상 동작 — 비트 순서가 뒤집히는 지점마다 점이 다른 위치로 매핑됩니다.
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 "use strict";
-const VOCAB = 256, BINS = 16, N = 256;
-const $ = id => document.getElementById(id);
 
+// ─────────────────────────────────────────────────────────────────────────
+// Original Python — verbatim from anima/byte_emergence_demo.py
+// (only the print loop is replaced with a per-tick step() helper for JS)
+// ─────────────────────────────────────────────────────────────────────────
+const PY_SOURCE = `
+import numpy as np
+
+VOCAB, BINS = 256, 16
+
+def H(x):
+    h, _ = np.histogram(x, bins=BINS, range=(0, VOCAB))
+    p = h / max(h.sum(), 1); p = p[p > 0]
+    return float(-(p * np.log2(p)).sum())
+
+def H_joint(L, R):
+    jh, *_ = np.histogram2d(L, R, bins=BINS, range=[[0, VOCAB], [0, VOCAB]])
+    p = jh / max(jh.sum(), 1); p = p[p > 0]
+    return float(-(p * np.log2(p)).sum())
+
+def emergence(L, R):
+    return max(0.0, H(L) + H(R) - H_joint(L, R))
+
+def engine_step(t, N=1024, coupling=0.8):
+    """Tension wave couples L and R — integration at byte level."""
+    rng = np.random.default_rng(t)
+    L = rng.integers(0, VOCAB, N)
+    R = rng.integers(0, VOCAB, N)
+    w = ((np.sin(np.linspace(0, 4 * np.pi, N) + t * 0.2) + 1) * 127).astype(int)
+    L = ((1 - coupling) * L + coupling * w).astype(int) % VOCAB
+    R = ((1 - coupling) * R + coupling * (w ^ (L >> 1))).astype(int) % VOCAB
+    return L, R
+
+# ── thin adapter for the JS layer ────────────────────────────────────────
+def step(t, coupling, N=256):
+    L, R = engine_step(t, N=N, coupling=coupling)
+    return {
+        "L": L.astype(np.uint8).tobytes(),
+        "R": R.astype(np.uint8).tobytes(),
+        "hL": H(L),
+        "hR": H(R),
+        "hJ": H_joint(L, R),
+        "mi": emergence(L, R),
+    }
+`;
+
+const $ = id => document.getElementById(id);
 const cvL = $("cv-l"), cvR = $("cv-r"), cvS = $("cv-s");
 const ctxL = cvL.getContext("2d"), ctxR = cvR.getContext("2d"), ctxS = cvS.getContext("2d");
 const slider = $("coup"), coupVal = $("coup-val"), resetBtn = $("reset");
 const elHL = $("m-hl"), elHR = $("m-hr"), elHJ = $("m-hj"), elMI = $("m-mi");
-const elBadge = $("badge"), elStatus = $("status");
+const elBadge = $("badge"), elStatus = $("status"), elLoadBar = $("loading-bar");
 
+let pyodide = null;
 let t = 0;
+let running = false;
+let dimsL, dimsR;
 
-// LCG seeded by t — deterministic noise per frame, gives smooth phase progression.
-function lcg(seed) {
-  let s = (seed | 0) >>> 0;
-  return () => {
-    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
-}
-
-function engineStep(tick, coupling) {
-  const rng = lcg(tick * 1009 + 31);
-  const L = new Uint8Array(N), R = new Uint8Array(N);
-  const phase = tick * 0.04;
-  for (let i = 0; i < N; i++) {
-    const lr = (rng() * VOCAB) | 0;
-    const rr = (rng() * VOCAB) | 0;
-    const w = (((Math.sin(i / N * 4 * Math.PI + phase) + 1) * 127.5) | 0);
-    const lv = ((1 - coupling) * lr + coupling * w) | 0;
-    const rv = ((1 - coupling) * rr + coupling * (w ^ (lv >> 1))) | 0;
-    L[i] = lv & 0xFF;
-    R[i] = rv & 0xFF;
-  }
-  return [L, R];
-}
-
-function entropy(arr) {
-  const h = new Int32Array(BINS);
-  for (let i = 0; i < arr.length; i++) {
-    h[(arr[i] * BINS / VOCAB) | 0]++;
-  }
-  const inv = 1 / arr.length;
-  let H = 0;
-  for (let i = 0; i < BINS; i++) {
-    if (h[i] > 0) {
-      const p = h[i] * inv;
-      H -= p * Math.log2(p);
-    }
-  }
-  return H;
-}
-
-function jointEntropy(L, R) {
-  const h = new Int32Array(BINS * BINS);
-  for (let i = 0; i < L.length; i++) {
-    const li = (L[i] * BINS / VOCAB) | 0;
-    const ri = (R[i] * BINS / VOCAB) | 0;
-    h[li * BINS + ri]++;
-  }
-  const inv = 1 / L.length;
-  let H = 0;
-  for (let i = 0; i < h.length; i++) {
-    if (h[i] > 0) {
-      const p = h[i] * inv;
-      H -= p * Math.log2(p);
-    }
-  }
-  return H;
+function setLoading(pct, label) {
+  elLoadBar.style.width = pct + "%";
+  if (label) elStatus.textContent = label;
 }
 
 function resizeCanvas(canvas) {
@@ -325,7 +242,6 @@ function drawScatter(L, R) {
   }
 }
 
-let dimsL, dimsR;
 function applyResize() {
   dimsL = resizeCanvas(cvL);
   dimsR = resizeCanvas(cvR);
@@ -333,13 +249,36 @@ function applyResize() {
 applyResize();
 window.addEventListener("resize", applyResize);
 
-function frame() {
+async function init() {
+  setLoading(15, "Pyodide 다운로드 중...");
+  pyodide = await loadPyodide({
+    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
+  });
+
+  setLoading(50, "numpy 로드 중... (~7MB)");
+  await pyodide.loadPackage("numpy");
+
+  setLoading(85, "byte_emergence_demo.py 실행 중...");
+  pyodide.runPython(PY_SOURCE);
+
+  setLoading(100, "준비 완료. 슬라이더를 움직여보세요.");
+  slider.disabled = false;
+  resetBtn.disabled = false;
+  setTimeout(() => { elLoadBar.style.opacity = 0; }, 600);
+
+  running = true;
+  loop();
+}
+
+function tickOnce() {
   const c = parseInt(slider.value, 10) / 100;
-  const [L, R] = engineStep(t, c);
-  const hL = entropy(L);
-  const hR = entropy(R);
-  const hJ = jointEntropy(L, R);
-  const mi = Math.max(0, hL + hR - hJ);
+  const proxy = pyodide.runPython(`step(${t}, ${c}, N=256)`);
+  const result = proxy.toJs({dict_converter: Object.fromEntries});
+  proxy.destroy();
+
+  const L = new Uint8Array(result.L);
+  const R = new Uint8Array(result.R);
+  const hL = result.hL, hR = result.hR, hJ = result.hJ, mi = result.mi;
 
   elHL.textContent = hL.toFixed(2);
   elHR.textContent = hR.toFixed(2);
@@ -362,7 +301,20 @@ function frame() {
   drawScatter(L, R);
 
   t++;
-  requestAnimationFrame(frame);
+}
+
+function loop() {
+  if (!running) return;
+  try {
+    tickOnce();
+  } catch (e) {
+    elStatus.textContent = "런타임 에러: " + e.message;
+    console.error(e);
+    running = false;
+    return;
+  }
+  // Pyodide 기준 ~20-30fps; 너무 빠르면 GC 부담.
+  setTimeout(() => requestAnimationFrame(loop), 30);
 }
 
 slider.addEventListener("input", () => {
@@ -374,7 +326,10 @@ resetBtn.addEventListener("click", () => {
   coupVal.textContent = "0.80";
 });
 
-requestAnimationFrame(frame);
+init().catch(err => {
+  elStatus.textContent = "Pyodide 로딩 실패: " + err.message;
+  console.error(err);
+});
 </script>
 </body>
 </html>

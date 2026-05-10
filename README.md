@@ -25,10 +25,11 @@ emergence = H(L) + H(R) − H(L, R)   (bits)
 
 ## Tech
 
-- Static HF Space (`sdk: static`) — first paint < 1 s, no cold start.
-- `requestAnimationFrame` 60 fps loop.
-- 16-bin histogram entropy, 256-sample window per frame.
-- LCG seeded by frame index → reproducible noise per tick.
+- Static HF Space (`sdk: static`) — no cold start.
+- **Pyodide** — runs `byte_emergence_demo.py` 100% verbatim in the browser via WebAssembly. numpy included.
+- First paint after Pyodide load (~5 s download, then cached): metrics tick at ~20-30 fps.
+- 16-bin histogram entropy, 256-sample window per tick.
+- Reproducible noise: `np.random.default_rng(t)` seeded by frame index — same as the Python original.
 
 ## Sister
 
