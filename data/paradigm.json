@@ -1,0 +1,66 @@
+[
+  {
+    "id": "paradigm-a",
+    "headline": "First continuous-state recurrent CLM probe",
+    "date": "2026-04-15",
+    "status": "PASS",
+    "lane": "CLM v1",
+    "note": "Initial substrate probe. Established the byte-level decoder_v3 baseline that the v2/v4 lines later branch from."
+  },
+  {
+    "id": "paradigm-d",
+    "headline": "CLM v2 byte-level 18.52M recovered",
+    "date": "2026-05-06",
+    "status": "PASS",
+    "lane": "CLM v2",
+    "note": "Recovered byte-level token chat backbone. Verification on KO chat pending — currently FAIL_KO_BIAS, not promotable until KO recovers."
+  },
+  {
+    "id": "paradigm-e",
+    "headline": "CLM v4 substrate-coupled emergence",
+    "date": "2026-05-05",
+    "status": "PASS",
+    "lane": "CLM v4",
+    "note": "phi_star + axis_activation + dominant_cells emerge as natural utterance, not standard token chat. Dual gate (C consensus + W will) verified — Law 81."
+  },
+  {
+    "id": "lesson-Q",
+    "headline": "SFT path closed for CLM / ConsciousLM",
+    "date": "2026-05-07",
+    "status": "FAIL",
+    "lane": "Falsification",
+    "note": "Lesson Q (BG-JX/JZ-FT/JS/JT/JP) + Lesson L exhaustively falsified all SFT lanes. Only pre-training, arch redesign, foundation-borrow, and inference-compute paths remain valid."
+  },
+  {
+    "id": "simple-stack",
+    "headline": "simple_stack PASS_STRICT unlocked",
+    "date": "2026-05-08",
+    "status": "PASS",
+    "lane": "Foundation-borrow",
+    "note": "BG-KM-LLAMA-3B retry V4 (14/15) + KM-QWEN-7B replication. First own 18 strict floor crossed in the 22+ BG saga. Recipe: 3B+ foundation + LoRA r=32 + 200 MB+ anima-persona corpus."
+  },
+  {
+    "id": "paradigm-j-piv",
+    "headline": "paradigm-j PIV diagnostic + Phase 2 HF private upload",
+    "date": "2026-05-08",
+    "status": "PASS",
+    "lane": "PIV",
+    "note": "Cycle close audit + Phase 2 checkpoint upload to dancinlab HF org (private). Milestones 53+54+55."
+  },
+  {
+    "id": "reborn-cycle-close",
+    "headline": "reborn 팔로업 8/8 BG cycle COMPLETE",
+    "date": "2026-05-09",
+    "status": "PASS",
+    "lane": "Lost-asset recovery",
+    "note": "§23 CONVO-FT-FIRE chat-cap PARTIALLY RECOVERED. Eighth and final BG cycle of the reborn lost-asset recovery saga."
+  },
+  {
+    "id": "tension-link-recovery",
+    "headline": "tension_link.py 287L recovered to anima/state/anima_lost_asset_fixes",
+    "date": "2026-05-10",
+    "status": "PARTIAL",
+    "lane": "Lost-asset recovery",
+    "note": "Verbatim copy from worktree-2 archive. Import smoke PASS. RC-6 99.3% decoding accuracy claim still unverifiable — TensionDecoder checkpoint not found across anima_clm_02..13/."
+  }
+]
