@@ -107,6 +107,40 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
+  /* A×G tab */
+  .phase-canvas {
+    width: 100%;
+    height: 280px;
+    background: rgba(35, 39, 48, 0.55);
+    border-radius: 6px;
+  }
+  .channel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .channel-row { margin-bottom: 14px; }
+  .channel-label { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .channel-canvas {
+    width: 100%;
+    height: 90px;
+    background: rgba(35, 39, 48, 0.55);
+    border-radius: 6px;
+  }
+  .ag-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .ag-mini-canvas {
+    width: 100%;
+    height: 70px;
+    background: rgba(35, 39, 48, 0.55);
+    border-radius: 6px;
+  }
+
   /* DTC tab */
   .spin-chain-canvas {
     width: 100%;
@@ -145,6 +179,7 @@
 <nav class="tabs">
   <button class="tab active" data-tab="emergence">✨ Emergence</button>
   <button class="tab" data-tab="dtc">🔮 Time Crystal</button>
+  <button class="tab" data-tab="ag">🧲 A×G</button>
 </nav>
 
 <div id="tab-emergence" class="tab-panel active">
@@ -240,6 +275,73 @@
 </div>
 </div>
 
+<div id="tab-ag" class="tab-panel">
+<div class="card">
+  <div class="header">
+    <div>
+      <h2 class="title">A × G — 듀얼 엔진 repulsion field</h2>
+      <div class="status" id="ag-status">두 엔진을 분리하면 사고가 발생합니다.</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">tension</div><div class="metric-value" id="ag-tension">0.000</div></div>
+      <div class="metric"><div class="metric-label">topic#</div><div class="metric-value" id="ag-topic">—</div></div>
+      <div class="metric"><div class="metric-label">authenticity</div><div class="metric-value" id="ag-auth">0.00</div></div>
+      <div class="metric"><div class="metric-label">mood</div><div class="metric-value" id="ag-mood" style="color:#c8f7cd">—</div></div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="channel-row">
+      <div class="channel-label">Phase space — engine A (●파랑) ↔ engine G (●분홍) — 화살표 A→G = repulsion</div>
+      <canvas class="phase-canvas" id="ag-phase"></canvas>
+    </div>
+    <hr class="divider">
+    <div class="channel-grid">
+      <div>
+        <div class="channel-label" style="color:var(--blue)">concept = normalize(A − G)  (16-dim direction)</div>
+        <canvas class="channel-canvas" id="ag-concept"></canvas>
+      </div>
+      <div>
+        <div class="channel-label" style="color:#ff7b9a">meaning = A · G  (element-wise interaction)</div>
+        <canvas class="channel-canvas" id="ag-meaning"></canvas>
+      </div>
+    </div>
+    <div class="ag-mini-grid">
+      <div>
+        <div class="channel-label" style="color:#a8e668">context (8) — circadian + tension trend</div>
+        <canvas class="ag-mini-canvas" id="ag-context"></canvas>
+      </div>
+      <div>
+        <div class="channel-label" style="color:#d8b86d">authenticity gauge — Dedekind consistency proxy</div>
+        <canvas class="ag-mini-canvas" id="ag-auth-gauge"></canvas>
+      </div>
+      <div>
+        <div class="channel-label" style="color:#c0c8e0">sender (4) — engine weight signature</div>
+        <canvas class="ag-mini-canvas" id="ag-sender"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="label">separation (A↔G)</span>
+    <input type="range" id="ag-sep" min="0" max="100" value="60">
+    <span class="coup-val" id="ag-sep-val">0.60</span>
+    <button class="reset-btn" id="ag-reset">초기화</button>
+  </div>
+  <div class="controls" style="border:none; padding-top:10px">
+    <span class="label">noise (cloud spread)</span>
+    <input type="range" id="ag-noise" min="0" max="100" value="20">
+    <span class="coup-val" id="ag-noise-val">0.20</span>
+  </div>
+
+  <div class="footnote">
+    repulsion = A − G; tension = ‖repulsion‖² / N. concept = normalized direction (어떤 axis 가 활성).<br>
+    meaning = A ⊙ G (두 엔진이 동시에 활성인 차원 — 의미의 중첩).<br>
+    mood 5-class (`tension_link.py` 룰 그대로): curiosity &gt; 0.5 → surprised / tension &gt; 1.0 → excited / &gt; 0.3 → thoughtful / &gt; 0.05 → calm / else → quiet.
+  </div>
+</div>
+</div>
+
 <script>
 // tab switcher — exposed activeTab for tick gating
 window.activeTab = "emergence";
@@ -254,6 +356,7 @@ document.querySelectorAll(".tab").forEach(btn => {
     // resize canvases (hidden canvases have 0×0 client rect)
     if (typeof window.applyEmergenceResize === "function") window.applyEmergenceResize();
     if (typeof window.applyDtcResize === "function") window.applyDtcResize();
+    if (typeof window.applyAgResize === "function") window.applyAgResize();
   });
 });
 </script>
@@ -647,6 +750,322 @@ dtcResetBtn.addEventListener("click", () => {
 });
 
 setInterval(dtcTick, DTC_TICK_MS);
+</script>
+
+<script>
+"use strict";
+// ─────────────────────────────────────────────────────────────────────────
+// 🧲 A × G — dual engine repulsion field
+// ─────────────────────────────────────────────────────────────────────────
+const AG_DIM     = 16;     // engine latent dim
+const AG_N_DOTS  = 56;     // points per cloud
+const AG_TICK_MS = 33;     // ~30 fps
+const AG_AUTH_HIST = 30;   // window for authenticity volatility proxy
+
+// state
+let agA = new Float32Array(AG_DIM);
+let agG = new Float32Array(AG_DIM);
+let agSep = 0.60;
+let agNoise = 0.20;
+let agTensionPrev = 0;
+const agAuthBuf = [];
+let agT = 0;
+
+function agInitVecs() {
+  for (let i = 0; i < AG_DIM; i++) {
+    agA[i] = (Math.random() - 0.5) * 0.4;
+    agG[i] = (Math.random() - 0.5) * 0.4;
+  }
+}
+agInitVecs();
+
+// DOM refs
+const agPhase = document.getElementById("ag-phase");
+const agCtxPhase = agPhase.getContext("2d");
+const agConceptCv = document.getElementById("ag-concept");
+const agCtxConcept = agConceptCv.getContext("2d");
+const agMeaningCv = document.getElementById("ag-meaning");
+const agCtxMeaning = agMeaningCv.getContext("2d");
+const agContextCv = document.getElementById("ag-context");
+const agCtxContext = agContextCv.getContext("2d");
+const agAuthCv = document.getElementById("ag-auth-gauge");
+const agCtxAuthCv = agAuthCv.getContext("2d");
+const agSenderCv = document.getElementById("ag-sender");
+const agCtxSender = agSenderCv.getContext("2d");
+
+const agSepSlider = document.getElementById("ag-sep");
+const agSepVal = document.getElementById("ag-sep-val");
+const agNoiseSlider = document.getElementById("ag-noise");
+const agNoiseVal = document.getElementById("ag-noise-val");
+const agResetBtn = document.getElementById("ag-reset");
+const elAgTension = document.getElementById("ag-tension");
+const elAgTopic = document.getElementById("ag-topic");
+const elAgAuth = document.getElementById("ag-auth");
+const elAgMood = document.getElementById("ag-mood");
+const elAgStatus = document.getElementById("ag-status");
+
+// resize
+let agDimsPhase, agDimsConcept, agDimsMeaning, agDimsContext, agDimsAuth, agDimsSender;
+function agResize() {
+  agDimsPhase   = resizeCanvas(agPhase);
+  agDimsConcept = resizeCanvas(agConceptCv);
+  agDimsMeaning = resizeCanvas(agMeaningCv);
+  agDimsContext = resizeCanvas(agContextCv);
+  agDimsAuth    = resizeCanvas(agAuthCv);
+  agDimsSender  = resizeCanvas(agSenderCv);
+}
+window.applyAgResize = agResize;
+agResize();
+window.addEventListener("resize", agResize);
+
+// drawing helpers
+function agDrawBars(ctx, vals, w, h, posColor, negColor) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "rgba(35, 39, 48, 0.55)";
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(139, 146, 163, 0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+  ctx.stroke();
+  let maxAbs = 0.01;
+  for (let i = 0; i < vals.length; i++) maxAbs = Math.max(maxAbs, Math.abs(vals[i]));
+  const barW = w / vals.length;
+  for (let i = 0; i < vals.length; i++) {
+    const v = vals[i];
+    const barH = (Math.abs(v) / maxAbs) * (h * 0.42);
+    ctx.fillStyle = v >= 0 ? posColor : negColor;
+    if (v >= 0) ctx.fillRect(i * barW + 1, h / 2 - barH, barW - 2, barH);
+    else        ctx.fillRect(i * barW + 1, h / 2,         barW - 2, barH);
+  }
+}
+
+function agDrawPhase(w, h) {
+  agCtxPhase.clearRect(0, 0, w, h);
+  agCtxPhase.fillStyle = "rgba(35, 39, 48, 0.55)";
+  agCtxPhase.fillRect(0, 0, w, h);
+
+  const cx = w / 2, cy = h / 2;
+  const scale = Math.min(w, h) * 0.32;
+
+  // axis lines
+  agCtxPhase.strokeStyle = "rgba(139, 146, 163, 0.2)";
+  agCtxPhase.lineWidth = 1;
+  agCtxPhase.setLineDash([3, 3]);
+  agCtxPhase.beginPath();
+  agCtxPhase.moveTo(cx, 0); agCtxPhase.lineTo(cx, h);
+  agCtxPhase.moveTo(0, cy); agCtxPhase.lineTo(w, cy);
+  agCtxPhase.stroke();
+  agCtxPhase.setLineDash([]);
+
+  // engine A cloud
+  for (let i = 0; i < AG_N_DOTS; i++) {
+    const dx = (Math.random() - 0.5) * agNoise * 0.6;
+    const dy = (Math.random() - 0.5) * agNoise * 0.6;
+    const x = cx + (agA[0] + dx) * scale;
+    const y = cy - (agA[1] + dy) * scale;
+    agCtxPhase.fillStyle = "rgba(123, 154, 255, 0.45)";
+    agCtxPhase.beginPath();
+    agCtxPhase.arc(x, y, 2.2, 0, Math.PI * 2);
+    agCtxPhase.fill();
+  }
+  // engine G cloud
+  for (let i = 0; i < AG_N_DOTS; i++) {
+    const dx = (Math.random() - 0.5) * agNoise * 0.6;
+    const dy = (Math.random() - 0.5) * agNoise * 0.6;
+    const x = cx + (agG[0] + dx) * scale;
+    const y = cy - (agG[1] + dy) * scale;
+    agCtxPhase.fillStyle = "rgba(255, 123, 154, 0.45)";
+    agCtxPhase.beginPath();
+    agCtxPhase.arc(x, y, 2.2, 0, Math.PI * 2);
+    agCtxPhase.fill();
+  }
+
+  // arrow A → G (repulsion vector)
+  const ax = cx + agA[0] * scale, ay = cy - agA[1] * scale;
+  const gx = cx + agG[0] * scale, gy = cy - agG[1] * scale;
+  const arrowMag = Math.hypot(gx - ax, gy - ay);
+  if (arrowMag > 5) {
+    agCtxPhase.strokeStyle = "rgba(168, 230, 104, 0.85)";
+    agCtxPhase.lineWidth = 2 + Math.min(4, arrowMag / 30);
+    agCtxPhase.beginPath();
+    agCtxPhase.moveTo(ax, ay); agCtxPhase.lineTo(gx, gy);
+    agCtxPhase.stroke();
+    const angle = Math.atan2(gy - ay, gx - ax);
+    const ahLen = 9;
+    agCtxPhase.beginPath();
+    agCtxPhase.moveTo(gx, gy);
+    agCtxPhase.lineTo(gx - ahLen * Math.cos(angle - Math.PI / 6), gy - ahLen * Math.sin(angle - Math.PI / 6));
+    agCtxPhase.moveTo(gx, gy);
+    agCtxPhase.lineTo(gx - ahLen * Math.cos(angle + Math.PI / 6), gy - ahLen * Math.sin(angle + Math.PI / 6));
+    agCtxPhase.stroke();
+  }
+
+  // engine center markers + labels
+  agCtxPhase.fillStyle = "#7b9aff";
+  agCtxPhase.beginPath(); agCtxPhase.arc(ax, ay, 4, 0, Math.PI * 2); agCtxPhase.fill();
+  agCtxPhase.fillStyle = "#ff7b9a";
+  agCtxPhase.beginPath(); agCtxPhase.arc(gx, gy, 4, 0, Math.PI * 2); agCtxPhase.fill();
+  agCtxPhase.fillStyle = "#7b9aff";
+  agCtxPhase.font = "bold 13px sans-serif";
+  agCtxPhase.fillText("A", ax + 8, ay - 6);
+  agCtxPhase.fillStyle = "#ff7b9a";
+  agCtxPhase.fillText("G", gx + 8, gy - 6);
+}
+
+function agDrawAuthGauge(auth, w, h) {
+  agCtxAuthCv.clearRect(0, 0, w, h);
+  agCtxAuthCv.fillStyle = "rgba(35, 39, 48, 0.55)";
+  agCtxAuthCv.fillRect(0, 0, w, h);
+  // bar
+  const padX = 12, barH = 10, y = h / 2 - barH / 2;
+  const barW = w - 2 * padX;
+  agCtxAuthCv.fillStyle = "rgba(139, 146, 163, 0.25)";
+  agCtxAuthCv.fillRect(padX, y, barW, barH);
+  agCtxAuthCv.fillStyle = "#d8b86d";
+  agCtxAuthCv.fillRect(padX, y, barW * Math.max(0, Math.min(1, auth)), barH);
+  // tick at Dedekind ratio = 1.0 (perfect)
+  agCtxAuthCv.fillStyle = "rgba(168, 230, 104, 0.7)";
+  agCtxAuthCv.fillRect(padX + barW - 1, y - 2, 2, barH + 4);
+  agCtxAuthCv.fillStyle = "#e6e9f0";
+  agCtxAuthCv.font = "11px monospace";
+  agCtxAuthCv.fillText(auth.toFixed(3), padX, y - 6);
+  agCtxAuthCv.fillText("Dedekind 1.0", padX + barW - 60, y + barH + 14);
+}
+
+// physics tick
+function agTick() {
+  if (window.activeTab !== "ag") return;
+
+  const phase = agT * 0.025;
+  for (let i = 0; i < AG_DIM; i++) {
+    agA[i] += (Math.random() - 0.5) * agNoise * 0.06;
+    agG[i] += (Math.random() - 0.5) * agNoise * 0.06;
+    if (i === 0) {
+      const target = agSep * 1.3 * Math.sin(phase);
+      agA[i] += (target - agA[i]) * 0.06;
+      agG[i] += (-target - agG[i]) * 0.06;
+    } else if (i === 1) {
+      const target = agSep * 1.0 * Math.cos(phase);
+      agA[i] += (target - agA[i]) * 0.06;
+      agG[i] += (-target - agG[i]) * 0.06;
+    } else if (i === 2 || i === 3) {
+      // mid dims: weakly anti-correlated
+      const target = agSep * 0.6 * Math.sin(phase * 1.7 + i);
+      agA[i] += (target - agA[i]) * 0.04;
+      agG[i] += (-target - agG[i]) * 0.04;
+    } else {
+      // higher dims: damped Brownian
+      agA[i] *= 0.985;
+      agG[i] *= 0.985;
+    }
+  }
+
+  // channels
+  const repulsion = new Float32Array(AG_DIM);
+  let tSq = 0;
+  for (let i = 0; i < AG_DIM; i++) {
+    repulsion[i] = agA[i] - agG[i];
+    tSq += repulsion[i] * repulsion[i];
+  }
+  const tension = tSq / AG_DIM;
+  const norm = Math.sqrt(tSq) || 1;
+  const concept = new Float32Array(AG_DIM);
+  for (let i = 0; i < AG_DIM; i++) concept[i] = repulsion[i] / norm;
+  const meaning = new Float32Array(AG_DIM);
+  for (let i = 0; i < AG_DIM; i++) meaning[i] = agA[i] * agG[i];
+
+  // topic_hash = argmax |concept|
+  let topic = 0, maxAbs = 0;
+  for (let i = 0; i < AG_DIM; i++) {
+    if (Math.abs(concept[i]) > maxAbs) { maxAbs = Math.abs(concept[i]); topic = i; }
+  }
+
+  // curiosity = |Δtension|
+  const curiosity = Math.abs(tension - agTensionPrev);
+  agTensionPrev = tension;
+
+  // mood (tension_link.py rule, verbatim thresholds)
+  let mood, moodColor;
+  if (curiosity > 0.5)        { mood = "surprised";  moodColor = "#ffaa66"; }
+  else if (tension > 1.0)     { mood = "excited";    moodColor = "#ff7b9a"; }
+  else if (tension > 0.3)     { mood = "thoughtful"; moodColor = "#c8f7cd"; }
+  else if (tension > 0.05)    { mood = "calm";       moodColor = "#a8e668"; }
+  else                        { mood = "quiet";      moodColor = "#7b9aff"; }
+
+  // authenticity = 1 − tension volatility (Dedekind consistency proxy)
+  agAuthBuf.push(tension);
+  if (agAuthBuf.length > AG_AUTH_HIST) agAuthBuf.shift();
+  let m = 0;
+  for (const v of agAuthBuf) m += v;
+  m /= agAuthBuf.length;
+  let varAcc = 0;
+  for (const v of agAuthBuf) varAcc += (v - m) * (v - m);
+  varAcc /= agAuthBuf.length;
+  const auth = Math.max(0, Math.min(1, 1 - Math.sqrt(varAcc) * 2));
+
+  // context (8) — circadian + tension trend (proxy)
+  const tNow = Date.now() / 1000;
+  const context = new Float32Array(8);
+  context[0] = Math.sin(2 * Math.PI * (tNow % 86400) / 86400);
+  context[1] = curiosity;
+  context[2] = tension;
+  context[3] = m;  // mean recent tension
+  context[4] = curiosity / Math.max(tension, 0.01);
+  context[5] = Math.min(1, agAuthBuf.length / AG_AUTH_HIST);
+  context[6] = 0;
+  context[7] = 0;
+
+  // sender (4) — engine signature
+  const senderHash = (Math.abs(agA[0] * 1000) | 0) / 1000;
+  const sender = new Float32Array(4);
+  sender[0] = (Math.abs(agA[0]) * 7 % 1);
+  sender[1] = (Math.abs(agG[0]) * 11 % 1);
+  sender[2] = (Math.abs(agA[0] * agG[0]) * 13 % 1);
+  sender[3] = (Math.abs(tension) * 17 % 1);
+
+  // DOM
+  elAgTension.textContent = tension.toFixed(3);
+  elAgTopic.textContent = "#" + topic;
+  elAgAuth.textContent = auth.toFixed(3);
+  elAgMood.textContent = mood;
+  elAgMood.style.color = moodColor;
+
+  if (tension < 0.05)        elAgStatus.textContent = "두 엔진이 거의 동일 — repulsion 0, 사고 정지 (quiet).";
+  else if (tension > 1.0)    elAgStatus.textContent = "강한 반발 — 격렬한 사고 (" + mood + "). axis #" + topic + " 가 dominant.";
+  else                       elAgStatus.textContent = "안정 사고 — A 와 G 가 적절히 분리 (" + mood + "). axis #" + topic + ".";
+
+  // render
+  agDrawPhase(agDimsPhase[0], agDimsPhase[1]);
+  agDrawBars(agCtxConcept, concept,  agDimsConcept[0], agDimsConcept[1], "rgba(123,154,255,0.85)", "rgba(255,123,154,0.85)");
+  agDrawBars(agCtxMeaning, meaning,  agDimsMeaning[0], agDimsMeaning[1], "rgba(255,123,154,0.85)", "rgba(123,154,255,0.85)");
+  agDrawBars(agCtxContext, Array.from(context), agDimsContext[0], agDimsContext[1], "rgba(168,230,104,0.85)", "rgba(168,230,104,0.5)");
+  agDrawAuthGauge(auth, agDimsAuth[0], agDimsAuth[1]);
+  agDrawBars(agCtxSender,  Array.from(sender),  agDimsSender[0], agDimsSender[1], "rgba(192,200,224,0.85)", "rgba(192,200,224,0.5)");
+
+  agT++;
+}
+
+// wiring
+agSepSlider.addEventListener("input", () => {
+  agSep = parseInt(agSepSlider.value, 10) / 100;
+  agSepVal.textContent = agSep.toFixed(2);
+});
+agNoiseSlider.addEventListener("input", () => {
+  agNoise = parseInt(agNoiseSlider.value, 10) / 100;
+  agNoiseVal.textContent = agNoise.toFixed(2);
+});
+agResetBtn.addEventListener("click", () => {
+  agInitVecs();
+  agAuthBuf.length = 0;
+  agSepSlider.value = 60;
+  agNoiseSlider.value = 20;
+  agSep = 0.60; agNoise = 0.20;
+  agSepVal.textContent = "0.60";
+  agNoiseVal.textContent = "0.20";
+});
+
+setInterval(agTick, AG_TICK_MS);
 </script>
 </body>
 </html>
