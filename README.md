@@ -35,10 +35,10 @@ emergence = H(L) + H(R) − H(L, R)   (bits)
 
 ## Sister
 
-- 👻 [need-singularity/anima](https://github.com/need-singularity/anima) — consciousness/soul cousin (working research code, source of `byte_emergence_demo.py`).
-- 🧬 [need-singularity/hexa-brain](https://github.com/need-singularity/hexa-brain) — BCI hardware sister-repo.
-- 👁️ [need-singularity/hexa-senses](https://github.com/need-singularity/hexa-senses) — 5-verb sensory substrate.
-- 🧠 [need-singularity/hexa-mind](https://github.com/need-singularity/hexa-mind) — 7-verb mental substrate.
+- 👻 [dancinlab/anima](https://github.com/dancinlab/anima) — consciousness/soul cousin (working research code, source of `byte_emergence_demo.py`).
+- 🧬 [dancinlab/hexa-brain](https://github.com/dancinlab/hexa-brain) — BCI hardware sister-repo.
+- 👁️ [dancinlab/hexa-senses](https://github.com/dancinlab/hexa-senses) — 5-verb sensory substrate.
+- 🧠 [dancinlab/hexa-mind](https://github.com/dancinlab/hexa-mind) — 7-verb mental substrate.
 
 ## License
 
