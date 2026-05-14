@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" role="img" aria-label="anima-experience logo">
+  <circle cx="70" cy="70" r="56" fill="none" stroke="#bf8700" stroke-width="6"/>
+  <path d="M 30 90 Q 50 50 70 90 T 110 90" fill="none" stroke="#bf8700" stroke-width="6" stroke-linecap="round"/>
+  <text x="70" y="118" text-anchor="middle"
+        font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+        font-size="16" font-weight="700" fill="#bf8700"
+        letter-spacing="1">anima</text>
+</svg>
