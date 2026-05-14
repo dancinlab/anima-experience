@@ -48,6 +48,14 @@
   brief = "anima mutual-information visualizer · HF Space · 60 fps emergence demo"
   parent = "dancinlab/anima"
 
+@L l1 := "repo-layout" :: structure [active]
+  AGENTS.tape -> "this file · governance + identity (.tape v1.2)"
+  CLAUDE.md -> "symlink → AGENTS.tape"
+  index.html -> "HTML"
+  README.md -> "human intro · 18-block format (atlas/README-FORMAT.md)"
+  TAPE-AUDIT.md -> ".tape v1.x adoption audit ledger"
+  tabs/ -> "subdir (1 items)"
+
 @D g_inherit := "inherits-lattice-policy" :: governance [required]
   rule = "All echoes/LATTICE_POLICY.md rules apply — real-limits-first · lattice-is-tool · verification-anchor-real-limit · no-artificial-ceilings · honesty-obligation-external."
   authority = "[@x_lattice_policy]"
