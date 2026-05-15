@@ -46,7 +46,7 @@
 @I id001 := "anima-experience" :: identity-claim [d=2026-05-14 active]
   kind = "dancinlab repo (anima-experience)"
   brief = "anima mutual-information visualizer · HF Space · 60 fps emergence demo"
-  parent = "dancinlab/anima"
+  parent = "dancinlab"
 
 @L l1 := "repo-layout" :: structure [active]
   AGENTS.tape -> "this file · governance + identity (.tape v1.2)"
